@@ -1,0 +1,28 @@
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:peoplejob_frontend/api_service.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text("API 테스트")),
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () {
+              ApiService().getUser(1); // 사용자 ID 1번 조회
+            },
+            child: const Text("유저 불러오기"),
+          ),
+        ),
+      ),
+    );
+  }
+}
