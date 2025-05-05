@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:peoplejob_frontend/ui/pages/notice/notice_detail_page.dart';
 
 class NoticeListView extends StatelessWidget {
   const NoticeListView({super.key});
@@ -28,8 +29,17 @@ class NoticeListView extends StatelessWidget {
             title: Text(notice['title']!),
             subtitle: Text('작성일: ${notice['date']}'),
             onTap: () {
-              // TODO: 상세 페이지로 이동
-              print("공지 클릭: ${notice['title']}");
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (_) => NoticeDetailPage(
+                        title: notice['title']!,
+                        content: '여기에 공지 본문이 들어갑니다\n줄바꿈도 가능해요.',
+                        date: notice['date']!,
+                      ),
+                ),
+              );
             },
           ),
         );
