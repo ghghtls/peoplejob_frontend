@@ -5,6 +5,8 @@ import 'package:peoplejob_frontend/api_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await dotenv.load(fileName: ".env");
   runApp(const ProviderScope(child: MyApp()));
 }
