@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_form_page.dart';
 import 'widgets/inquiry_list_view.dart';
 import 'widgets/empty_inquiry_message.dart';
 import 'widgets/add_inquiry_button.dart';
@@ -17,7 +18,15 @@ class InquiryListPage extends StatelessWidget {
         child:
             hasInquiry ? const InquiryListView() : const EmptyInquiryMessage(),
       ),
-      floatingActionButton: const AddInquiryButton(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const InquiryFormPage()),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
