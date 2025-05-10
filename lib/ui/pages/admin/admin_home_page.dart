@@ -14,18 +14,56 @@ class AdminHomePage extends StatelessWidget {
       appBar: AppBar(title: const Text('관리자 페이지')),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
-          AdminSectionTitle(title: '채용공고 관리'),
-          JobManageList(),
-          SizedBox(height: 24),
-          AdminSectionTitle(title: '이력서 관리'),
-          ResumeManageList(),
-          SizedBox(height: 24),
+        children: [
+          AdminSectionTitle(title: '대시보드'),
+          ListTile(
+            title: const Text('관리 요약/통계 보기'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.pushNamed(context, '/admin/dashboard');
+            },
+          ),
+          const SizedBox(height: 16),
+
+          AdminSectionTitle(title: '공지사항 관리'),
+          ListTile(
+            title: const Text('공지사항 목록/수정'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.pushNamed(context, '/admin/notice');
+            },
+          ),
+          const SizedBox(height: 16),
+
           AdminSectionTitle(title: '회원 관리'),
-          UserManageList(),
-          SizedBox(height: 24),
-          AdminSectionTitle(title: '문의 내역 관리'),
-          InquiryManageList(),
+          ListTile(
+            title: const Text('일반/기업회원 목록'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.pushNamed(context, '/admin/user');
+            },
+          ),
+          const SizedBox(height: 16),
+
+          AdminSectionTitle(title: '게시판 관리'),
+          ListTile(
+            title: const Text('게시판 생성/사용여부 설정'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.pushNamed(context, '/admin/board');
+            },
+          ),
+          const SizedBox(height: 16),
+
+          AdminSectionTitle(title: '팝업 관리'),
+          ListTile(
+            title: const Text('팝업 등록/노출 설정'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.pushNamed(context, '/admin/popup');
+            },
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
