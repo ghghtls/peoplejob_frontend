@@ -15,7 +15,7 @@ class LoginPage extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const LoginForm(),
+            const LoginForm(), //  핵심: 로그인 폼 연결됨
             const SizedBox(height: 20),
             const SignUpLink(),
             const SizedBox(height: 20),
