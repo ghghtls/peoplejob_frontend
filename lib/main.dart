@@ -6,6 +6,7 @@ import 'package:peoplejob_frontend/ui/pages/admin/admin_notice_manage_page.dart'
 import 'package:peoplejob_frontend/ui/pages/admin/admin_user_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_board_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_popup_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
