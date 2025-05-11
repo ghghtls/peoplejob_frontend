@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
 
 class BoardWriteForm extends StatefulWidget {
   const BoardWriteForm({super.key});
@@ -10,12 +11,14 @@ class BoardWriteForm extends StatefulWidget {
 class _BoardWriteFormState extends State<BoardWriteForm> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
+  final quill.QuillController _quillController = quill.QuillController.basic();
+  final FocusNode _focusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
       final title = _titleController.text.trim();
-      final content = _contentController.text.trim();
+      final content = _quillController.document.toPlainText();
 
       // TODO: 서버 전송
       print('제목: $title');
@@ -30,7 +33,9 @@ class _BoardWriteFormState extends State<BoardWriteForm> {
   @override
   void dispose() {
     _titleController.dispose();
-    _contentController.dispose();
+    _quillController.dispose();
+    _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -39,6 +44,7 @@ class _BoardWriteFormState extends State<BoardWriteForm> {
     return Form(
       key: _formKey,
       child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -48,15 +54,27 @@ class _BoardWriteFormState extends State<BoardWriteForm> {
               validator: (v) => v == null || v.isEmpty ? '제목을 입력하세요' : null,
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _contentController,
-              maxLines: 10,
-              decoration: const InputDecoration(
-                labelText: '내용',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+            quill.QuillSimpleToolbar(
+              controller: _quillController,
+              config: const quill.QuillSimpleToolbarConfig(),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 300,
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+              padding: const EdgeInsets.all(8),
+              child: quill.QuillEditor.basic(
+                controller: _quillController,
+                config: quill.QuillEditorConfig(
+                  //   scrollController: _scrollController,
+                  //  focusNode: _focusNode,
+                  scrollable: true,
+                  autoFocus: false,
+                  //  readOnly: false,
+                  expands: false,
+                  padding: const EdgeInsets.all(8),
+                ),
               ),
-              validator: (v) => v == null || v.isEmpty ? '내용을 입력하세요' : null,
             ),
             const SizedBox(height: 24),
             ElevatedButton(onPressed: _submit, child: const Text('등록')),
