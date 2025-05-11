@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:peoplejob_frontend/ui/pages/resume/widgets/resume_address_field.dart';
+import 'package:peoplejob_frontend/ui/pages/resume/widgets/resume_image_picker.dart';
 import 'widgets/resume_title_field.dart';
 import 'widgets/resume_description_field.dart';
 import 'widgets/resume_file_upload.dart';
@@ -21,6 +22,8 @@ class ResumeEditPage extends StatelessWidget {
             ResumeDescriptionField(),
             SizedBox(height: 16),
             ResumeAddressField(),
+            SizedBox(height: 16),
+            ResumeImagePicker(),
             SizedBox(height: 16),
             ResumeFileUpload(),
             SizedBox(height: 100),
