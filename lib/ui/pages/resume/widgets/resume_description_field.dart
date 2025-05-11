@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
 class ResumeDescriptionField extends StatelessWidget {
-  const ResumeDescriptionField({super.key});
+  final String initialValue;
+
+  const ResumeDescriptionField({super.key, required this.initialValue});
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      maxLines: 8,
-      decoration: const InputDecoration(
-        labelText: '자기소개 및 경력 요약',
-        border: OutlineInputBorder(),
-        alignLabelWithHint: true,
-      ),
+    final controller = TextEditingController(text: initialValue);
+
+    return TextFormField(
+      controller: controller,
+      maxLines: 5,
+      decoration: const InputDecoration(labelText: '자기소개'),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:peoplejob_frontend/ui/pages/resume/resume_edit_page.dart';
 import 'widgets/resume_section_card.dart';
 
 class ResumeDetailPage extends StatelessWidget {
@@ -103,6 +104,23 @@ class ResumeDetailPage extends StatelessWidget {
               children: [
                 ElevatedButton(onPressed: () {}, child: const Text('수정')),
                 ElevatedButton(onPressed: () {}, child: const Text('삭제')),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => ResumeEditPage(
+                              initialTitle: '복사된 이력서 제목',
+                              initialDescription: '기존 자기소개 복사 내용입니다.',
+                              // 기타 필요한 필드도 같이 전달
+                            ),
+                      ),
+                    );
+                  },
+                  child: const Text('복사해서 새 이력서 만들기'),
+                ),
+
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('목록으로'),
