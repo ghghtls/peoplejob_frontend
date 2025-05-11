@@ -1,20 +1,33 @@
 import 'package:flutter/material.dart';
+import 'apply_now_sheet.dart';
 
 class ApplyButton extends StatelessWidget {
   const ApplyButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-          // TODO: 지원하기 로직 연결
-          print("지원하기 버튼 클릭");
-        },
-        child: const Text('지원하기'),
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              builder:
+                  (_) => const ApplyNowSheet(
+                    resumeList: ['개발자 이력서 1', '풀스택 이력서 2', 'AI 포지션 이력서'],
+                  ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(50),
+          ),
+          child: const Text('즉시지원'),
+        ),
       ),
     );
   }
