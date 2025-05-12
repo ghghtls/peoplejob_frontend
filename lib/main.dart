@@ -1,9 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// 페이지 import
-import 'package:peoplejob_frontend/ui/pages/home/home_page.dart';
+import 'package:peoplejob_frontend/ui/pages/board/board_edit_page.dart';
 import 'package:peoplejob_frontend/ui/pages/company_mypage/company_mypage_page.dart';
+
+import 'package:peoplejob_frontend/ui/pages/home/home_page.dart';
+import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/login/login_page.dart';
+import 'package:peoplejob_frontend/ui/pages/login/register_page.dart';
+import 'package:peoplejob_frontend/ui/pages/login/find_id_page.dart';
+import 'package:peoplejob_frontend/ui/pages/login/find_password_page.dart';
+
+import 'package:peoplejob_frontend/ui/pages/job/job_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/job/job_detail_page.dart';
+import 'package:peoplejob_frontend/ui/pages/mypage/my_page.dart';
+import 'package:peoplejob_frontend/ui/pages/resources/resource_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/resume/resume_edit_page.dart';
+import 'package:peoplejob_frontend/ui/pages/resume/resume_list_page.dart';
+
+import 'package:peoplejob_frontend/ui/pages/notice/notice_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/notice/notice_detail_page.dart';
+
+import 'package:peoplejob_frontend/ui/pages/board/board_write_page.dart';
+
+import 'package:peoplejob_frontend/ui/pages/payment/payment_page.dart';
+import 'package:peoplejob_frontend/ui/pages/search/search_page.dart';
+import 'package:peoplejob_frontend/ui/pages/search/talent_search_page.dart';
+import 'package:peoplejob_frontend/ui/pages/tools/word_count_page.dart';
+import 'package:peoplejob_frontend/ui/pages/user/user_home_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/admin/admin_dashboard_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_notice_manage_page.dart';
@@ -12,16 +37,13 @@ import 'package:peoplejob_frontend/ui/pages/admin/admin_board_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_popup_manage_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
-import 'package:peoplejob_frontend/ui/pages/login/login_page.dart';
-import 'package:peoplejob_frontend/ui/pages/login/register_page.dart';
-import 'package:peoplejob_frontend/ui/pages/mypage/my_page.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
 
 // 관리자 여부 Provider
-final isAdminProvider = StateProvider<bool>((ref) => false); // 기본 false
+final isAdminProvider = StateProvider<bool>((ref) => false);
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
@@ -35,46 +57,97 @@ class MyApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
-        // 기본 홈페이지
-        '/': (_) => const HomePage(),
+        '/': (context) => const HomePage(),
 
-        // 유저 로그인/회원가입
-        '/login': (_) => const LoginPage(),
-        '/register': (_) => const RegisterPage(),
+        // 로그인/회원가입
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+        '/find-id': (context) => const FindIdPage(),
+        '/find-password': (context) => const FindPasswordPage(),
 
-        // 일반 유저 마이페이지
-        '/mypage/user': (_) => const MyPage(),
+        // 마이페이지
+        '/mypage/user': (context) => const MyPage(),
+        '/mypage/company': (context) => const CompanyMyPage(),
 
-        // 기업회원 마이페이지
-        '/mypage/company': (_) => const CompanyMyPage(),
+        // 공고
+        '/job': (context) => const JobListPage(),
+        '/job/detail': (context) => const JobDetailPage(),
 
-        // 관리자 페이지들 (로그인 후 진입 판단은 로그인 로직에서 처리)
+        // 이력서
+        '/resume': (context) => const ResumeListPage(),
+        '/resume/register': (context) => const ResumeEditPage(),
+
+        // 공지사항
+        '/notice': (context) => const NoticeListPage(),
+        '/notice/detail':
+            (context) =>
+                const NoticeDetailPage(title: '', content: '', date: ''),
+
+        // 게시판
+        '/board/write': (context) => const BoardWritePage(),
+
+        // 문의사항
+        '/inquiry/list': (context) => const InquiryListPage(),
+
+        // 검색
+        '/search': (context) => const SearchPage(),
+        '/search/talentSearchPage': (context) => const TalentSearchPage(),
+
+        // 결제
+        '/payment': (context) => const PaymentPage(),
+
+        // 자료실
+        '/resources/list': (context) => const ResourceListPage(),
+
+        // 도구
+        '/tools/wordcount': (context) => const WordCountPage(),
+
+        // 관리자
         '/admin/dashboard':
-            (_) =>
+            (context) =>
                 isAdmin ? const AdminDashboardPage() : const UnauthorizedPage(),
         '/admin/notice':
-            (_) =>
+            (context) =>
                 isAdmin
                     ? const AdminNoticeManagePage()
                     : const UnauthorizedPage(),
         '/admin/user':
-            (_) =>
+            (context) =>
                 isAdmin
                     ? const AdminUserManagePage()
                     : const UnauthorizedPage(),
         '/admin/board':
-            (_) =>
+            (context) =>
                 isAdmin
                     ? const AdminBoardManagePage()
                     : const UnauthorizedPage(),
         '/admin/popup':
-            (_) =>
+            (context) =>
                 isAdmin
                     ? const AdminPopupManagePage()
                     : const UnauthorizedPage(),
 
         // 권한 없음
-        '/unauthorized': (_) => const UnauthorizedPage(),
+        '/unauthorized': (context) => const UnauthorizedPage(),
+      },
+
+      /// ✨ onGenerateRoute → 동적 라우팅 처리
+      onGenerateRoute: (settings) {
+        if (settings.name == '/board/edit') {
+          final args = settings.arguments as Map<String, dynamic>;
+
+          return MaterialPageRoute(
+            builder:
+                (_) => BoardEditPage(
+                  initialTitle: args['title'] as String,
+                  initialContent: args['content'] as quill.Document,
+                  onSave:
+                      args['onSave'] as void Function(String, quill.Document),
+                ),
+          );
+        }
+
+        return null;
       },
     );
   }
