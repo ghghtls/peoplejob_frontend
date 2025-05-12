@@ -29,16 +29,14 @@ class NoticeListView extends StatelessWidget {
             title: Text(notice['title']!),
             subtitle: Text('작성일: ${notice['date']}'),
             onTap: () {
-              Navigator.push(
+              Navigator.pushNamed(
                 context,
-                MaterialPageRoute(
-                  builder:
-                      (_) => NoticeDetailPage(
-                        title: notice['title']!,
-                        content: '여기에 공지 본문이 들어갑니다\n줄바꿈도 가능해요.',
-                        date: notice['date']!,
-                      ),
-                ),
+                '/notice/detail',
+                arguments: {
+                  'title': notice['title'],
+                  'content': notice['content'],
+                  'date': notice['date'],
+                },
               );
             },
           ),

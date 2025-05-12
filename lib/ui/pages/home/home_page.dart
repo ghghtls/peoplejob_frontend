@@ -13,20 +13,39 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('피플잡'), centerTitle: true),
-      body: const SingleChildScrollView(
+      body: SingleChildScrollView(
         child: Column(
           children: [
-            JobRollingBanner(),
-            SizedBox(height: 16),
-            JobRandomSection(),
-            SizedBox(height: 16),
-            JobRecommendSection(),
-            SizedBox(height: 16),
-            CompanyAdsSection(),
-            SizedBox(height: 16),
-            NoticePreview(),
-            SizedBox(height: 16),
-            ResourceShortcuts(),
+            const JobRollingBanner(),
+            const SizedBox(height: 16),
+            const JobRandomSection(),
+            const SizedBox(height: 16),
+            const JobRecommendSection(),
+            const SizedBox(height: 16),
+            const CompanyAdsSection(),
+            const SizedBox(height: 16),
+            const NoticePreview(),
+            const SizedBox(height: 16),
+            const ResourceShortcuts(),
+            const SizedBox(height: 32),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    child: const Text('로그인'),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/register'),
+                    child: const Text('회원가입'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),

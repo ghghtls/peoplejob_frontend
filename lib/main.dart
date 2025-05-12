@@ -80,9 +80,6 @@ class MyApp extends ConsumerWidget {
 
         // 공지사항
         '/notice': (context) => const NoticeListPage(),
-        '/notice/detail':
-            (context) =>
-                const NoticeDetailPage(title: '', content: '', date: ''),
 
         // 게시판
         '/board/write': (context) => const BoardWritePage(),
@@ -147,6 +144,18 @@ class MyApp extends ConsumerWidget {
                   initialContent: args['content'] as quill.Document,
                   onSave:
                       args['onSave'] as void Function(String, quill.Document),
+                ),
+          );
+        }
+
+        if (settings.name == '/notice/detail') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder:
+                (_) => NoticeDetailPage(
+                  title: args['title'] as String,
+                  content: args['content'] as String,
+                  date: args['date'] as String,
                 ),
           );
         }
