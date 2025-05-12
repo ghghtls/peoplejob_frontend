@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_list_page.dart';
 
 class BoardEditPage extends StatefulWidget {
   final String initialTitle;
   final quill.Document initialContent;
+  final void Function(String title, quill.Document content) onSave;
 
   const BoardEditPage({
     super.key,
     required this.initialTitle,
     required this.initialContent,
+    required this.onSave,
   });
 
   @override
@@ -33,9 +36,9 @@ class _BoardEditPageState extends State<BoardEditPage> {
 
   void _handleSave() {
     final editedTitle = _titleController.text;
-    final editedContent = _contentController.document.toPlainText();
+    final editedContent = _contentController.document;
 
-    // TODO: 서버로 PUT 요청 등 처리
+    widget.onSave(editedTitle, editedContent);
 
     ScaffoldMessenger.of(
       context,
