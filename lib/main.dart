@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:peoplejob_frontend/ui/pages/board/board_detail_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/board/board_edit_page.dart';
 import 'package:peoplejob_frontend/ui/pages/company_mypage/company_mypage_page.dart';
@@ -85,6 +86,9 @@ class MyApp extends ConsumerWidget {
 
         // 게시판
         '/board/write': (context) => const BoardWritePage(),
+        '/board/detail':
+            (context) =>
+                const BoardDetailPage(title: '', content: '', date: ''),
 
         // 문의사항
         '/inquiry/list': (context) => const InquiryListPage(),
