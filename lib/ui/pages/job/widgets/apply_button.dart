@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'apply_now_sheet.dart';
 
 class ApplyButton extends StatelessWidget {
-  const ApplyButton({super.key});
+  final String jobTitle;
+
+  const ApplyButton({super.key, required this.jobTitle});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +20,8 @@ class ApplyButton extends StatelessWidget {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
               builder:
-                  (_) => const ApplyNowSheet(
+                  (_) => ApplyNowSheet(
+                    jobTitle: jobTitle,
                     resumeList: ['개발자 이력서 1', '풀스택 이력서 2', 'AI 포지션 이력서'],
                   ),
             );
