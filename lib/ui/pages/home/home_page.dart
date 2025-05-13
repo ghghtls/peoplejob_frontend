@@ -46,6 +46,10 @@ class HomePage extends StatelessWidget {
                     onPressed: () => Navigator.pushNamed(context, '/board'),
                     child: const Text('📋 게시판'),
                   ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/resume'),
+                    child: const Text('📄 이력서 보기'),
+                  ),
                 ],
               ),
             ),

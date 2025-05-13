@@ -13,10 +13,16 @@ class MyPage extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          children: const [
-            ProfileCard(),
-            SizedBox(height: 20),
-            MyPageMenuList(),
+          children: [
+            const ProfileCard(),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.assignment),
+              title: const Text('이력서 관리'),
+              onTap: () => Navigator.pushNamed(context, '/resume'),
+            ),
+
+            const MyPageMenuList(),
           ],
         ),
       ),
