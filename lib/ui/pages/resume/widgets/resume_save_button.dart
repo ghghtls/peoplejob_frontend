@@ -14,10 +14,12 @@ class ResumeSaveButton extends ConsumerWidget {
         onPressed: () {
           final title = ref.read(resumeTitleProvider);
           final description = ref.read(resumeDescriptionProvider);
+          final file = ref.read(resumeFileProvider);
 
           // 저장 처리
           debugPrint('저장된 제목: $title');
           debugPrint('저장된 자기소개: $description');
+          debugPrint('첨부파일 경로: ${file?.path}');
 
           ScaffoldMessenger.of(
             context,

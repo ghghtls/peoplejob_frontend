@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:peoplejob_frontend/data/provider/resume_providers.dart';
 import 'address_search_page.dart';
 
-class ResumeAddressField extends StatefulWidget {
+class ResumeAddressField extends ConsumerStatefulWidget {
   const ResumeAddressField({super.key});
 
   @override
-  State<ResumeAddressField> createState() => _ResumeAddressFieldState();
+  ConsumerState<ResumeAddressField> createState() => _ResumeAddressFieldState();
 }
 
-class _ResumeAddressFieldState extends State<ResumeAddressField> {
-  final TextEditingController _addressController = TextEditingController();
+class _ResumeAddressFieldState extends ConsumerState<ResumeAddressField> {
+  late final TextEditingController _addressController;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = ref.read(resumeAddressProvider);
+    _addressController = TextEditingController(text: initial);
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +37,10 @@ class _ResumeAddressFieldState extends State<ResumeAddressField> {
           context,
           MaterialPageRoute(builder: (_) => const AddressSearchPage()),
         );
-        if (result != null) {
+        if (result != null && result is String) {
           setState(() {
             _addressController.text = result;
+            ref.read(resumeAddressProvider.notifier).state = result;
           });
         }
       },
