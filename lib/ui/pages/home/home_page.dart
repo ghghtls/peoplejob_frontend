@@ -50,6 +50,12 @@ class HomePage extends StatelessWidget {
                     onPressed: () => Navigator.pushNamed(context, '/resume'),
                     child: const Text('📄 이력서 보기'),
                   ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/job');
+                    },
+                    child: const Text('📢 채용공고 보기'),
+                  ),
                 ],
               ),
             ),

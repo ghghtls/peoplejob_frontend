@@ -73,7 +73,13 @@ class MyApp extends ConsumerWidget {
 
         // 공고
         '/job': (context) => const JobListPage(),
-        '/job/detail': (context) => const JobDetailPage(),
+        '/job/detail':
+            (context) => const JobDetailPage(
+              title: '',
+              company: '',
+              location: '',
+              description: '',
+            ),
 
         // 이력서
         '/resume': (context) => const ResumeListPage(),
@@ -172,6 +178,19 @@ class MyApp extends ConsumerWidget {
                 ),
           );
         }
+        if (settings.name == '/job/detail') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder:
+                (_) => JobDetailPage(
+                  title: args['title'],
+                  company: args['company'],
+                  location: args['location'],
+                  description: args['description'],
+                ),
+          );
+        }
+
         return null;
       },
     );

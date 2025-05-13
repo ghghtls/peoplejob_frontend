@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 class ApplyNowSheet extends StatefulWidget {
+  final String jobTitle;
   final List<String> resumeList;
 
-  const ApplyNowSheet({super.key, required this.resumeList});
+  const ApplyNowSheet({
+    super.key,
+    required this.resumeList,
+    required this.jobTitle,
+  });
 
   @override
   State<ApplyNowSheet> createState() => _ApplyNowSheetState();
@@ -15,11 +20,12 @@ class _ApplyNowSheetState extends State<ApplyNowSheet> {
   void _submit() {
     if (_selectedResume == null) return;
 
-    // TODO: 지원 API 요청
+    // TODO: 지원 API 요청에 widget.jobTitle, _selectedResume 활용
+
     Navigator.pop(context); // 모달 닫기
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('지원이 완료되었습니다')));
+    ).showSnackBar(SnackBar(content: Text('[${widget.jobTitle}]에 지원 완료되었습니다')));
   }
 
   @override
@@ -28,8 +34,12 @@ class _ApplyNowSheetState extends State<ApplyNowSheet> {
       padding: const EdgeInsets.all(16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('사용할 이력서를 선택하세요', style: TextStyle(fontSize: 16)),
+          Text(
+            '[${widget.jobTitle}] 공고에 사용할 이력서를 선택하세요',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           ...widget.resumeList.map((resume) {
             return RadioListTile<String>(

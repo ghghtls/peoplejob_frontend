@@ -5,13 +5,13 @@ class JobListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: 실제 데이터 연동 예정
     final dummyJobs = List.generate(
       10,
       (index) => {
         'title': '백엔드 개발자 ${index + 1}',
         'company': '피플잡 주식회사',
         'location': '서울 강남구',
+        'description': 'Java/Spring 기반 백엔드 개발자 모집합니다.',
       },
     );
 
@@ -25,8 +25,16 @@ class JobListView extends StatelessWidget {
             title: Text(job['title']!),
             subtitle: Text('${job['company']} • ${job['location']}'),
             onTap: () {
-              // TODO: 채용공고 상세 페이지 이동
-              print('공고 ${job['title']} 클릭');
+              Navigator.pushNamed(
+                context,
+                '/job/detail',
+                arguments: {
+                  'title': job['title'],
+                  'company': job['company'],
+                  'location': job['location'],
+                  'description': job['description'],
+                },
+              );
             },
           ),
         );
