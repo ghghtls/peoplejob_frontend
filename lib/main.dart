@@ -161,7 +161,17 @@ class MyApp extends ConsumerWidget {
                 ),
           );
         }
+        if (settings.name == '/resume/register') {
+          final args = settings.arguments as Map<String, dynamic>;
 
+          return MaterialPageRoute(
+            builder:
+                (_) => ResumeEditPage(
+                  initialTitle: args['title'] as String?,
+                  initialDescription: args['description'] as String?,
+                ),
+          );
+        }
         return null;
       },
     );

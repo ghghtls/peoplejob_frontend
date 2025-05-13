@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
 
 class AddResumeButton extends StatelessWidget {
   const AddResumeButton({super.key});
@@ -7,8 +8,17 @@ class AddResumeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: () {
-        // TODO: 이력서 등록 페이지로 이동
-        print("새 이력서 등록 페이지 이동");
+        Navigator.pushNamed(
+          context,
+          '/resume/register',
+          arguments: {
+            'title': '',
+            'content': quill.Document(),
+            'onSave': (String title, quill.Document content) {
+              debugPrint('새 이력서 저장됨: $title');
+            },
+          },
+        );
       },
       child: const Icon(Icons.add),
     );

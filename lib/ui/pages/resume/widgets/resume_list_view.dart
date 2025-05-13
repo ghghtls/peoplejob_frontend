@@ -5,39 +5,37 @@ class ResumeListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dummyResumes = List.generate(
-      3,
-      (i) => {'title': '이력서 ${i + 1}', 'date': '2025-05-0${i + 1}'},
-    );
+    final dummyResumes = [
+      {
+        'title': '백엔드 개발자 이력서',
+        'description': 'Java, Spring Boot 프로젝트 경험 있음',
+        'date': '2025-05-10',
+      },
+      {
+        'title': '플러터 앱 개발자',
+        'description': 'Flutter로 앱 3개 출시 경험',
+        'date': '2025-04-28',
+      },
+    ];
 
-    return ListView.separated(
+    return ListView.builder(
       itemCount: dummyResumes.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final resume = dummyResumes[index];
         return Card(
           child: ListTile(
             title: Text(resume['title']!),
             subtitle: Text('작성일: ${resume['date']}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {
-                    // TODO: 수정 페이지 이동
-                    print("수정 ${resume['title']}");
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () {
-                    // TODO: 삭제 로직
-                    print("삭제 ${resume['title']}");
-                  },
-                ),
-              ],
-            ),
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/resume/register',
+                arguments: {
+                  'title': resume['title'],
+                  'description': resume['description'],
+                },
+              );
+            },
           ),
         );
       },
