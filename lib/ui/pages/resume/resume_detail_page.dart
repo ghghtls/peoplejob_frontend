@@ -3,12 +3,21 @@ import 'package:peoplejob_frontend/ui/pages/resume/resume_edit_page.dart';
 import 'widgets/resume_section_card.dart';
 
 class ResumeDetailPage extends StatelessWidget {
-  const ResumeDetailPage({super.key});
+  final String title;
+  final String description;
+  final String date;
+
+  const ResumeDetailPage({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.date,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('이력서 상세')),
+      appBar: AppBar(title: Text(title)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -42,12 +51,7 @@ class ResumeDetailPage extends StatelessWidget {
             const SizedBox(height: 32),
 
             // 자기소개
-            const ResumeSectionCard(
-              title: '자기소개',
-              children: [
-                Text('책임감 있고 성실한 개발자입니다. 다양한 프로젝트를 통해 협업과 문제 해결 능력을 키웠습니다.'),
-              ],
-            ),
+            ResumeSectionCard(title: '자기소개', children: [Text(description)]),
 
             // 학력사항
             const ResumeSectionCard(
@@ -102,8 +106,20 @@ class ResumeDetailPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton(onPressed: () {}, child: const Text('수정')),
-                ElevatedButton(onPressed: () {}, child: const Text('삭제')),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/resume/register',
+                      arguments: {'title': title, 'description': description},
+                    );
+                  },
+                  child: const Text('수정'),
+                ),
+                ElevatedButton(
+                  onPressed: () {}, // 삭제 기능 미구현
+                  child: const Text('삭제'),
+                ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(
@@ -111,16 +127,14 @@ class ResumeDetailPage extends StatelessWidget {
                       MaterialPageRoute(
                         builder:
                             (_) => ResumeEditPage(
-                              initialTitle: '복사된 이력서 제목',
-                              initialDescription: '기존 자기소개 복사 내용입니다.',
-                              // 기타 필요한 필드도 같이 전달
+                              initialTitle: '$title 복사본',
+                              initialDescription: description,
                             ),
                       ),
                     );
                   },
                   child: const Text('복사해서 새 이력서 만들기'),
                 ),
-
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('목록으로'),
@@ -134,7 +148,6 @@ class ResumeDetailPage extends StatelessWidget {
   }
 }
 
-// 내부 정보 타일 위젯
 class _InfoTile extends StatelessWidget {
   final String title;
   final String subtitle;
