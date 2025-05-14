@@ -12,7 +12,18 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('피플잡'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('PeopleJob'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.pushNamed(context, '/search');
+            },
+          ),
+        ],
+      ),
+
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -68,6 +79,13 @@ class HomePage extends StatelessWidget {
                       Navigator.pushNamed(context, '/job');
                     },
                     child: const Text('📢 채용공고 보기'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.folder),
+                    title: const Text('자료실'),
+                    onTap: () {
+                      Navigator.pushNamed(context, '/resources/list');
+                    },
                   ),
                 ],
               ),
