@@ -7,7 +7,10 @@ import 'widgets/resume_file_upload.dart';
 import 'widgets/resume_save_button.dart';
 
 class ResumeEditPage extends StatelessWidget {
-  const ResumeEditPage({super.key});
+  final String? initialTitle;
+  final String? initialDescription;
+
+  const ResumeEditPage({super.key, this.initialTitle, this.initialDescription});
 
   @override
   Widget build(BuildContext context) {
@@ -16,17 +19,17 @@ class ResumeEditPage extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          children: const [
-            ResumeTitleField(),
-            SizedBox(height: 16),
-            ResumeDescriptionField(),
-            SizedBox(height: 16),
-            ResumeAddressField(),
-            SizedBox(height: 16),
-            ResumeImagePicker(),
-            SizedBox(height: 16),
-            ResumeFileUpload(),
-            SizedBox(height: 100),
+          children: [
+            ResumeTitleField(initialValue: initialTitle ?? ''),
+            const SizedBox(height: 16),
+            ResumeDescriptionField(initialValue: initialDescription ?? ''),
+            const SizedBox(height: 16),
+            const ResumeAddressField(),
+            const SizedBox(height: 16),
+            const ResumeImagePicker(),
+            const SizedBox(height: 16),
+            const ResumeFileUpload(),
+            const SizedBox(height: 100),
           ],
         ),
       ),
