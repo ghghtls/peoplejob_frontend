@@ -35,6 +35,13 @@ class MyPage extends StatelessWidget {
                 Navigator.pushNamed(context, '/resources/list');
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.folder),
+              title: const Text('스크랩'),
+              onTap: () {
+                Navigator.pushNamed(context, '/scrap');
+              },
+            ),
 
             const MyPageMenuList(),
           ],
