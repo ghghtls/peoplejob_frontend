@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:peoplejob_frontend/ui/pages/payment/widgets/product_card.dart';
 
 class PaymentProductSelectionPage extends StatelessWidget {
   const PaymentProductSelectionPage({super.key});
@@ -34,7 +33,22 @@ class PaymentProductSelectionPage extends StatelessWidget {
         itemCount: products.length,
         itemBuilder: (context, index) {
           final product = products[index];
-          return ProductCard(product: product);
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              title: Text(
+                product.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text('${product.description} / ${product.duration}일'),
+              trailing: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/payment/schedule');
+                },
+                child: const Text('선택'),
+              ),
+            ),
+          );
         },
       ),
     );

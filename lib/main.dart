@@ -8,6 +8,7 @@ import 'package:peoplejob_frontend/ui/pages/board/board_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/company_mypage/company_mypage_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/home/home_page.dart';
+import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_form_page.dart';
 import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/login/login_page.dart';
 import 'package:peoplejob_frontend/ui/pages/login/register_page.dart';
@@ -17,6 +18,12 @@ import 'package:peoplejob_frontend/ui/pages/login/find_password_page.dart';
 import 'package:peoplejob_frontend/ui/pages/job/job_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/job/job_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/my_page.dart';
+import 'package:peoplejob_frontend/ui/pages/mypage/scrap/scrap_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/payment/payment_product_selection_page.dart';
+import 'package:peoplejob_frontend/ui/pages/payment/payment_result_page.dart';
+import 'package:peoplejob_frontend/ui/pages/payment/payment_schedule_page.dart';
+import 'package:peoplejob_frontend/ui/pages/payment/payment_target_selection_page.dart';
+import 'package:peoplejob_frontend/ui/pages/resources/job_news_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resources/resource_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resume/resume_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resume/resume_edit_page.dart';
@@ -101,6 +108,7 @@ class MyApp extends ConsumerWidget {
 
         // 문의사항
         '/inquiry/list': (context) => const InquiryListPage(),
+        '/inquiry/write': (context) => const InquiryFormPage(),
 
         // 검색
         '/search': (context) => const SearchPage(),
@@ -108,12 +116,22 @@ class MyApp extends ConsumerWidget {
 
         // 결제
         '/payment': (context) => const PaymentPage(),
+        '/payment/target': (context) => const PaymentTargetSelectionPage(),
+        '/payment/product': (context) => const PaymentProductSelectionPage(),
+        '/payment/schedule': (context) => const PaymentSchedulePage(),
+        '/payment/result': (context) => const PaymentResultPage(),
 
         // 자료실
         '/resources/list': (context) => const ResourceListPage(),
 
         // 도구
         '/tools/wordcount': (context) => const WordCountPage(),
+
+        //스트랩
+        '/scrap': (context) => const ScrapListPage(),
+
+        //취업뉴스
+        '/resources/news': (context) => const JobNewsPage(),
 
         // 관리자
         '/admin/dashboard':

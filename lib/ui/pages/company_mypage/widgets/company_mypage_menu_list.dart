@@ -7,6 +7,7 @@ class CompanyMyPageMenuList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> menuItems = [
+      {'title': '광고 신청하기', 'icon': Icons.campaign, 'route': '/payment'},
       {'title': '채용공고 등록', 'icon': Icons.add_box, 'route': '/job/register'},
       {'title': '채용공고 관리', 'icon': Icons.work_outline, 'route': '/job/manage'},
       {'title': '광고 결제 내역', 'icon': Icons.payment, 'route': '/payment'},
