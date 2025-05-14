@@ -29,10 +29,11 @@ class ResumeListView extends StatelessWidget {
             onTap: () {
               Navigator.pushNamed(
                 context,
-                '/resume/register',
+                '/resume/detail',
                 arguments: {
                   'title': resume['title'],
                   'description': resume['description'],
+                  'date': resume['date'],
                 },
               );
             },
