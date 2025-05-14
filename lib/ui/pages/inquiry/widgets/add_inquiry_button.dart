@@ -7,8 +7,7 @@ class AddInquiryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: () {
-        // TODO: 문의 작성 페이지로 이동
-        print("문의 작성 페이지 이동");
+        Navigator.pushNamed(context, '/inquiry/write');
       },
       child: const Icon(Icons.edit),
     );
