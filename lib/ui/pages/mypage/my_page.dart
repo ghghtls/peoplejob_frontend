@@ -21,6 +21,20 @@ class MyPage extends StatelessWidget {
               title: const Text('이력서 관리'),
               onTap: () => Navigator.pushNamed(context, '/resume'),
             ),
+            ListTile(
+              leading: const Icon(Icons.question_answer),
+              title: const Text('문의사항'),
+              onTap: () {
+                Navigator.pushNamed(context, '/inquiry/list');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder),
+              title: const Text('자료실'),
+              onTap: () {
+                Navigator.pushNamed(context, '/resources/list');
+              },
+            ),
 
             const MyPageMenuList(),
           ],
