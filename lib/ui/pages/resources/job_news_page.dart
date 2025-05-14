@@ -27,13 +27,15 @@ class JobNewsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('취업 뉴스')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _newsList.length,
-        itemBuilder: (context, index) {
-          final news = _newsList[index];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          '📰 취업 뉴스',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        ..._newsList.map((news) {
           return Card(
             child: ListTile(
               title: Text(news['title']!),
@@ -54,8 +56,8 @@ class JobNewsPage extends StatelessWidget {
               },
             ),
           );
-        },
-      ),
+        }).toList(),
+      ],
     );
   }
 }
