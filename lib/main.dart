@@ -68,8 +68,8 @@ class MyApp extends ConsumerWidget {
         '/find-password': (context) => const FindPasswordPage(),
 
         // 마이페이지
-        '/mypage/user': (context) => const MyPage(),
-        '/mypage/company': (context) => const CompanyMyPage(),
+        '/mypage': (context) => const MyPage(),
+        '/companymypage': (context) => const CompanyMyPage(),
 
         // 공고
         '/job': (context) => const JobListPage(),

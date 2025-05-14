@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:peoplejob_frontend/data/provider/admin_provider.dart';
+import 'package:peoplejob_frontend/data/provider/auth_provider.dart';
 import 'package:peoplejob_frontend/services/auth_service.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
@@ -18,12 +19,16 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  void onLoginSuccess(bool isAdminUser) {
-    ref.read(isAdminProvider.notifier).state = isAdminUser;
-    if (isAdminUser) {
+  void onLoginSuccess({required bool isAdmin, required String userType}) {
+    ref.read(isAdminProvider.notifier).state = isAdmin;
+    ref.read(userTypeProvider.notifier).state = userType;
+
+    if (isAdmin) {
       Navigator.pushNamed(context, '/admin/dashboard');
+    } else if (userType == 'company') {
+      Navigator.pushNamed(context, '/companymypage');
     } else {
-      Navigator.pushNamed(context, '/mypage/company');
+      Navigator.pushNamed(context, '/mypage');
     }
   }
 
@@ -36,16 +41,21 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     });
 
     try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
       final success = await AuthService().login(
-        email: _emailController.text,
-        password: _passwordController.text,
+        email: email,
+        password: password,
         context: context,
       );
 
       if (success) {
-        // 관리자 여부 판별 예시: 이메일이 admin@admin.com이면 관리자
-        final isAdminUser = _emailController.text.trim() == 'admin@admin.com';
-        onLoginSuccess(isAdminUser);
+        final isAdmin = email == 'admin@admin.com';
+        final userType =
+            email.contains('company') ? 'company' : 'user'; // 간단 구분
+
+        onLoginSuccess(isAdmin: isAdmin, userType: userType);
       } else {
         setState(() {
           _errorMessage = '로그인 실패: 이메일 또는 비밀번호를 확인하세요.';

@@ -43,6 +43,19 @@ class HomePage extends StatelessWidget {
                     child: const Text('회원가입'),
                   ),
                   ElevatedButton(
+                    onPressed: () {
+                      final userType = 'user'; // 'user' 또는 'company'
+
+                      if (userType == 'company') {
+                        Navigator.pushNamed(context, '/companymypage');
+                      } else {
+                        Navigator.pushNamed(context, '/mypage');
+                      }
+                    },
+                    child: const Text('마이페이지'),
+                  ),
+
+                  ElevatedButton(
                     onPressed: () => Navigator.pushNamed(context, '/board'),
                     child: const Text('📋 게시판'),
                   ),
