@@ -7,10 +7,19 @@ class CompanyMyPageMenuList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> menuItems = [
-      {'title': '채용공고 등록', 'icon': Icons.add_box},
-      {'title': '채용공고 관리', 'icon': Icons.work_outline},
-      {'title': '광고 결제 내역', 'icon': Icons.payment},
-      {'title': '문의사항 관리', 'icon': Icons.question_answer},
+      {'title': '채용공고 등록', 'icon': Icons.add_box, 'route': '/job/register'},
+      {'title': '채용공고 관리', 'icon': Icons.work_outline, 'route': '/job/manage'},
+      {'title': '광고 결제 내역', 'icon': Icons.payment, 'route': '/payment'},
+      {
+        'title': '문의사항 관리',
+        'icon': Icons.question_answer,
+        'route': '/inquiry/list',
+      },
+      {
+        'title': '인재정보 검색',
+        'icon': Icons.search,
+        'route': '/search/talentSearchPage',
+      },
     ];
 
     return Column(
@@ -22,7 +31,9 @@ class CompanyMyPageMenuList extends StatelessWidget {
                 title: Text(item['title']),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  // TODO: 각 메뉴별 페이지 이동 구현 필요
+                  if (item['route'] != null) {
+                    Navigator.pushNamed(context, item['route']);
+                  }
                 },
               ),
             );
