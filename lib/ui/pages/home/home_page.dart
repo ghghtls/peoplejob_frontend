@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:peoplejob_frontend/ui/pages/resources/job_news_page.dart';
 import 'widgets/job_rolling_banner.dart';
 import 'widgets/job_random_section.dart';
 import 'widgets/job_recommend_section.dart';
@@ -39,7 +40,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 16),
             const ResourceShortcuts(),
             const SizedBox(height: 32),
-
+            const JobNewsPage(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
