@@ -18,6 +18,7 @@ import 'package:peoplejob_frontend/ui/pages/job/job_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/job/job_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/my_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resources/resource_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/resume/resume_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resume/resume_edit_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resume/resume_list_page.dart';
 
@@ -83,6 +84,9 @@ class MyApp extends ConsumerWidget {
 
         // 이력서
         '/resume': (context) => const ResumeListPage(),
+        '/resume/detail':
+            (context) =>
+                const ResumeDetailPage(title: '', description: '', date: ''),
         '/resume/register': (context) => const ResumeEditPage(),
 
         // 공지사항
@@ -178,6 +182,18 @@ class MyApp extends ConsumerWidget {
                 ),
           );
         }
+        if (settings.name == '/resume/detail') {
+          // arguments가 필요하면 여기에 Map<String, dynamic> 처리
+          return MaterialPageRoute(
+            builder:
+                (_) => const ResumeDetailPage(
+                  title: '',
+                  description: '',
+                  date: '',
+                ),
+          );
+        }
+
         if (settings.name == '/job/detail') {
           final args = settings.arguments as Map<String, dynamic>;
           return MaterialPageRoute(
