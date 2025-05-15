@@ -93,6 +93,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           const SizedBox(height: 24),
           if (_errorMessage != null)
             Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 12),
+
+          // ✅ 이메일(JWT) 로그인 버튼
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -100,7 +103,25 @@ class _LoginFormState extends ConsumerState<LoginForm> {
               child:
                   _isLoading
                       ? const CircularProgressIndicator()
-                      : const Text('로그인'),
+                      : const Text('이메일로 로그인'),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ✅ 구글 로그인 버튼
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.login),
+              label: const Text('Google 계정으로 로그인'),
+              onPressed: () async {
+                await AuthService().signInWithGoogle(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black87,
+                side: const BorderSide(color: Colors.grey),
+              ),
             ),
           ),
         ],

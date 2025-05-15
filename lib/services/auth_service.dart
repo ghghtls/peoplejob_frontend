@@ -1,12 +1,20 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
+  // JWT 기반 백엔드 설정
   final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:8080'));
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  /// 로그인 요청
+  // Firebase 설정
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// ✅ 이메일 로그인 (백엔드 API + JWT)
   Future<bool> login({
     required String email,
     required String password,
@@ -14,7 +22,7 @@ class AuthService {
   }) async {
     try {
       final response = await _dio.post(
-        '/api/member/login', // ✅ 실제 백엔드 기준 경로
+        '/api/member/login',
         data: {'email': email, 'password': password},
       );
 
@@ -22,18 +30,16 @@ class AuthService {
       final role = response.data['role'];
       final userEmail = response.data['email'];
 
-      // ✅ 토큰 및 사용자 정보 안전하게 저장
       await _storage.write(key: 'jwt', value: token);
       await _storage.write(key: 'role', value: role);
       await _storage.write(key: 'email', value: userEmail);
 
-      // ✅ 역할 기반 분기 처리
       if (role == 'user') {
         Navigator.pushReplacementNamed(context, '/mypage');
       } else if (role == 'company') {
         Navigator.pushReplacementNamed(context, '/companymypage');
       } else {
-        Navigator.pushReplacementNamed(context, '/'); // fallback
+        Navigator.pushReplacementNamed(context, '/');
       }
 
       return true;
@@ -49,26 +55,53 @@ class AuthService {
     }
   }
 
-  /// 로그아웃 시 저장된 토큰 제거
+  /// ✅ 구글 로그인 (Firebase + Firestore 존재 여부 확인)
+  Future<void> signInWithGoogle(BuildContext context) async {
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return; // 사용자 취소
+
+      final googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      final uid = userCredential.user!.uid;
+
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+
+      if (userDoc.exists) {
+        Navigator.pushReplacementNamed(context, '/mypage');
+      } else {
+        Navigator.pushReplacementNamed(context, '/register');
+      }
+    } catch (e) {
+      print('구글 로그인 오류: $e');
+      _showSnackbar(context, '구글 로그인에 실패했습니다. 다시 시도해주세요.');
+    }
+  }
+
+  /// ✅ 로그아웃 (토큰/이메일 초기화 + Firebase 로그아웃)
   Future<void> logout(BuildContext context) async {
     await _storage.delete(key: 'jwt');
     await _storage.delete(key: 'role');
     await _storage.delete(key: 'email');
 
+    await _auth.signOut(); // Firebase 로그아웃
+
     Navigator.pushReplacementNamed(context, '/login');
   }
 
-  /// 현재 저장된 토큰 반환
-  Future<String?> getToken() async {
-    return await _storage.read(key: 'jwt');
-  }
+  /// ✅ JWT 토큰 반환
+  Future<String?> getToken() async => await _storage.read(key: 'jwt');
 
-  /// 현재 사용자 역할 반환
-  Future<String?> getRole() async {
-    return await _storage.read(key: 'role');
-  }
+  /// ✅ 사용자 역할 반환
+  Future<String?> getRole() async => await _storage.read(key: 'role');
 
-  /// 스낵바 알림 유틸
+  /// ✅ 공통 스낵바 알림
   void _showSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,

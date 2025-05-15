@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
@@ -48,13 +49,33 @@ import 'package:peoplejob_frontend/ui/pages/admin/admin_board_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_popup_manage_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /*Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env"); // dotenv 초기화
   runApp(const ProviderScope(child: MyApp()));
 }*/
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(); // ✅ .env 불러오기
+
+  if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: dotenv.env['FIREBASE_API_KEY']!,
+        authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN']!,
+        projectId: dotenv.env['FIREBASE_PROJECT_ID']!,
+        storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET']!,
+        messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID']!,
+        appId: dotenv.env['FIREBASE_APP_ID']!,
+      ),
+    );
+  } else {
+    await Firebase.initializeApp(); // 모바일은 json/plist 사용
+  }
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
