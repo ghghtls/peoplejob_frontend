@@ -19,19 +19,6 @@ class _LoginFormState extends ConsumerState<LoginForm> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  void onLoginSuccess({required bool isAdmin, required String userType}) {
-    ref.read(isAdminProvider.notifier).state = isAdmin;
-    ref.read(userTypeProvider.notifier).state = userType;
-
-    if (isAdmin) {
-      Navigator.pushNamed(context, '/admin/dashboard');
-    } else if (userType == 'company') {
-      Navigator.pushNamed(context, '/companymypage');
-    } else {
-      Navigator.pushNamed(context, '/mypage');
-    }
-  }
-
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -51,11 +38,21 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       );
 
       if (success) {
-        final isAdmin = email == 'admin@admin.com';
-        final userType =
-            email.contains('company') ? 'company' : 'user'; // 간단 구분
+        final role = await AuthService().getRole();
 
-        onLoginSuccess(isAdmin: isAdmin, userType: userType);
+        final isAdmin = email == 'admin@admin.com';
+        final userType = role == 'company' ? 'company' : 'user';
+
+        ref.read(isAdminProvider.notifier).state = isAdmin;
+        ref.read(userTypeProvider.notifier).state = userType;
+
+        if (isAdmin) {
+          Navigator.pushReplacementNamed(context, '/admin/dashboard');
+        } else if (userType == 'company') {
+          Navigator.pushReplacementNamed(context, '/companymypage');
+        } else {
+          Navigator.pushReplacementNamed(context, '/mypage');
+        }
       } else {
         setState(() {
           _errorMessage = '로그인 실패: 이메일 또는 비밀번호를 확인하세요.';
