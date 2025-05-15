@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_detail_page.dart';
@@ -48,6 +49,11 @@ import 'package:peoplejob_frontend/ui/pages/admin/admin_popup_manage_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
 
+/*Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env"); // dotenv 초기화
+  runApp(const ProviderScope(child: MyApp()));
+}*/
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }

@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../model/job.dart';
 
+//  Dio Provider
 final dioProvider = Provider<Dio>((ref) {
   return Dio(BaseOptions(baseUrl: dotenv.env['API_BASE_URL'] ?? ''));
 });
 
-// 채용공고 리스트 가져오기 (랜덤 공고든 전체 공고든)
+//  채용공고 리스트 Provider
 final jobListProvider = FutureProvider<List<Job>>((ref) async {
   final dio = ref.read(dioProvider);
   final response = await dio.get('/jobs');
