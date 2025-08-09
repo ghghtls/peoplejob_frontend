@@ -2,36 +2,50 @@ class Job {
   final int id;
   final int companyId;
   final String title;
-  final String description;
-  final String salary;
-  final String location;
-  final String workType;
-  final String status;
-  final DateTime createdAt;
+  final String? content;
+  final String? location;
+  final String? salary;
+  final String? career;
+  final String? education;
+  final DateTime? deadline;
+  final DateTime? regdate;
+  final String? jobType;
+  final String? filename;
+  final String? originalFilename;
 
   Job({
     required this.id,
     required this.companyId,
     required this.title,
-    required this.description,
-    required this.salary,
-    required this.location,
-    required this.workType,
-    required this.status,
-    required this.createdAt,
+    this.content,
+    this.location,
+    this.salary,
+    this.career,
+    this.education,
+    this.deadline,
+    this.regdate,
+    this.jobType,
+    this.filename,
+    this.originalFilename,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
     return Job(
-      id: json['id'] as int,
-      companyId: json['company_id'] as int,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      salary: json['salary'] as String,
-      location: json['location'] as String,
-      workType: json['work_type'] as String,
-      status: json['status'] as String,
-      createdAt: DateTime.parse(json['created_at']),
+      id: json['jobopening_no'] ?? 0,
+      companyId: json['company_no'] ?? 0,
+      title: json['title'] ?? '',
+      content: json['content'],
+      location: json['location'],
+      salary: json['salary'],
+      career: json['career'],
+      education: json['education'],
+      deadline:
+          json['deadline'] != null ? DateTime.tryParse(json['deadline']) : null,
+      regdate:
+          json['regdate'] != null ? DateTime.tryParse(json['regdate']) : null,
+      jobType: json['jobtype'],
+      filename: json['filename'],
+      originalFilename: json['original_filename'],
     );
   }
 }
