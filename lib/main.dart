@@ -59,10 +59,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
+  await dotenv.load(fileName: ".env");
 
   if (kIsWeb) {
-    // ✅ Web은 수동 초기화 필요
+    //  Web은 수동 초기화 필요
     await Firebase.initializeApp(
       options: FirebaseOptions(
         apiKey: dotenv.env['FIREBASE_API_KEY']!,
@@ -74,7 +74,7 @@ void main() async {
       ),
     );
   } else {
-    // ✅ Android/iOS는 설정파일로 자동 처리, 절대 중복 초기화 금지
+    //  Android/iOS는 설정파일로 자동 처리, 절대 중복 초기화 금지
     await Firebase.initializeApp();
   }
 
