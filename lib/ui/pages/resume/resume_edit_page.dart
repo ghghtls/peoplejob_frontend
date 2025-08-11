@@ -1,18 +1,24 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../services/resume_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../data/provider/file_upload_provider.dart';
+import '../../widgets/image_picker_widget.dart';
+import '../../widgets/file_picker_widget.dart';
 
-class ResumeEditPage extends StatefulWidget {
+class ResumeEditPage extends ConsumerStatefulWidget {
   final int? resumeId; // 수정 모드일 때 사용
 
   const ResumeEditPage({super.key, this.resumeId});
 
   @override
-  State<ResumeEditPage> createState() => _ResumeEditPageState();
+  ConsumerState<ResumeEditPage> createState() => _ResumeEditPageState();
 }
 
-class _ResumeEditPageState extends State<ResumeEditPage> {
+class _ResumeEditPageState extends ConsumerState<ResumeEditPage> {
   final _formKey = GlobalKey<FormState>();
   final ResumeService _resumeService = ResumeService();
   final AuthService _authService = AuthService();
@@ -30,8 +36,15 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
   String? _selectedHopeLocation;
   String? _selectedWorkType;
 
+  // 파일 관련
+  String? _profileImageUrl;
+  File? _selectedProfileImage;
+  File? _selectedResumeFile;
+  String? _existingResumeFileName;
+
   bool _isLoading = false;
   bool _isEditMode = false;
+  bool _isSubmitting = false;
   int? _currentUserNo;
 
   // 드롭다운 옵션들
@@ -106,6 +119,10 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
       _selectedHopeLocation = resumeDetail['hopeLocation'];
       _selectedWorkType = resumeDetail['workType'];
 
+      // 기존 파일 정보 로드
+      _profileImageUrl = resumeDetail['profileImageUrl'];
+      _existingResumeFileName = resumeDetail['originalFileName'];
+
       setState(() {
         _isLoading = false;
       });
@@ -119,35 +136,136 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
     }
   }
 
+  // 프로필 이미지 선택 콜백
+  void _onProfileImageSelected(String? imagePath) {
+    if (imagePath != null) {
+      setState(() {
+        _selectedProfileImage = File(imagePath);
+        _profileImageUrl = null; // 새 이미지 선택시 기존 URL 제거
+      });
+    } else {
+      setState(() {
+        _selectedProfileImage = null;
+        _profileImageUrl = null;
+      });
+    }
+  }
+
+  // 이력서 파일 선택 콜백
+  void _onResumeFileSelected(File? file) {
+    setState(() {
+      _selectedResumeFile = file;
+      if (file != null) {
+        _existingResumeFileName = null; // 새 파일 선택시 기존 파일명 제거
+      }
+    });
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _isLoading = true;
+      _isSubmitting = true;
     });
 
     try {
+      // 1. 프로필 이미지 업로드 (선택된 경우)
+      String? uploadedImageUrl = _profileImageUrl; // 기존 URL 유지
+      if (_selectedProfileImage != null && widget.resumeId != null) {
+        final imageUrl = await ref
+            .read(fileUploadProvider.notifier)
+            .uploadResumeImage(_selectedProfileImage!, widget.resumeId!);
+
+        if (imageUrl != null) {
+          uploadedImageUrl = imageUrl;
+        } else {
+          throw Exception('프로필 이미지 업로드 실패');
+        }
+      }
+
+      // 2. 이력서 파일 업로드 (선택된 경우)
+      Map<String, String>? uploadedFileInfo;
+      if (_selectedResumeFile != null && widget.resumeId != null) {
+        uploadedFileInfo = await ref
+            .read(fileUploadProvider.notifier)
+            .uploadResumeFile(_selectedResumeFile!, widget.resumeId!);
+
+        if (uploadedFileInfo == null) {
+          throw Exception('이력서 파일 업로드 실패');
+        }
+      }
+
+      // 3. 이력서 데이터 준비
       final resumeData = {
         'title': _titleController.text,
         'content': _contentController.text,
         'education': _educationController.text,
         'career': _careerController.text,
-        'certificate': _certificateController.text,
-        'hopeJobtype': _selectedHopeJobtype,
-        'hopeLocation': _selectedHopeLocation,
-        'salary': _salaryController.text,
-        'workType': _selectedWorkType,
+        'certificate': _certificateController.text, // 추가
+        'hopeJobtype': _selectedHopeJobtype, // ✓
+        'hopeLocation': _selectedHopeLocation, // ✓
+        'salary': _salaryController.text, // ✓
+        'workType': _selectedWorkType, // 추가
         'regdate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        'userNo': _currentUserNo,
+        'userNo': _currentUserNo, // ✓
+        // 파일 정보 (선택사항)
+        if (uploadedImageUrl != null) 'imagePath': uploadedImageUrl,
+        if (uploadedFileInfo != null)
+          'originalImage': uploadedFileInfo['originalName'],
       };
 
+      // 파일 정보 추가
+      if (uploadedImageUrl != null) {
+        resumeData['profileImageUrl'] = uploadedImageUrl;
+      }
+      if (uploadedFileInfo != null) {
+        resumeData['fileUrl'] = uploadedFileInfo['fileUrl']!;
+        resumeData['originalFileName'] = uploadedFileInfo['originalName']!;
+      }
+
+      // 4. 이력서 저장
       if (_isEditMode) {
         await _resumeService.updateResume(widget.resumeId!, resumeData);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('이력서가 수정되었습니다')));
       } else {
-        await _resumeService.createResume(resumeData);
+        final newResumeId = await _resumeService.createResume(resumeData);
+
+        // 새 이력서 등록시 파일 업로드 처리
+        if (newResumeId != null) {
+          // 프로필 이미지 업로드
+          if (_selectedProfileImage != null) {
+            final imageUrl = await ref
+                .read(fileUploadProvider.notifier)
+                .uploadResumeImage(_selectedProfileImage!, newResumeId);
+
+            if (imageUrl != null) {
+              // 이미지 URL을 이력서에 업데이트
+              await _resumeService.updateResume(newResumeId, {
+                ...resumeData,
+                'profileImageUrl': imageUrl,
+              });
+            }
+          }
+
+          // 이력서 파일 업로드
+          if (_selectedResumeFile != null) {
+            final fileInfo = await ref
+                .read(fileUploadProvider.notifier)
+                .uploadResumeFile(_selectedResumeFile!, newResumeId);
+
+            if (fileInfo != null) {
+              // 파일 정보를 이력서에 업데이트
+              await _resumeService.updateResume(newResumeId, {
+                ...resumeData,
+                'fileUrl': fileInfo['fileUrl']!,
+                'originalFileName': fileInfo['originalName']!,
+              });
+            }
+          }
+        }
+
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('이력서가 등록되었습니다')));
@@ -157,10 +275,10 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ).showSnackBar(SnackBar(content: Text('오류가 발생했습니다: ${e.toString()}')));
     } finally {
       setState(() {
-        _isLoading = false;
+        _isSubmitting = false;
       });
     }
   }
@@ -178,13 +296,15 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final fileUploadState = ref.watch(fileUploadProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditMode ? '이력서 수정' : '이력서 등록'),
         backgroundColor: Colors.green[600],
         foregroundColor: Colors.white,
         actions: [
-          if (_isLoading)
+          if (_isSubmitting || fileUploadState.isUploading)
             const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
@@ -225,57 +345,11 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
                       _buildSectionTitle('프로필 사진'),
                       const SizedBox(height: 16),
                       Center(
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(60),
-                                border: Border.all(
-                                  color: Colors.grey[300]!,
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.person,
-                                size: 60,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: GestureDetector(
-                                onTap: () {
-                                  // TODO: 이미지 선택 기능 구현
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('이미지 업로드 기능은 준비 중입니다'),
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: Colors.green[600],
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.camera_alt,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: ImagePickerWidget(
+                          initialImageUrl: _profileImageUrl,
+                          onImageSelected: _onProfileImageSelected,
+                          size: 120,
+                          placeholderText: '프로필 사진 추가',
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -481,6 +555,21 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
                       ),
                       const SizedBox(height: 32),
 
+                      // 이력서 파일 업로드
+                      _buildSectionTitle('이력서 파일 (선택사항)'),
+                      const SizedBox(height: 8),
+
+                      FilePickerWidget(
+                        initialFileName: _existingResumeFileName,
+                        onFileSelected: _onResumeFileSelected,
+                        allowedExtensions: ['pdf', 'doc', 'docx', 'hwp'],
+                        fileType: FileType.custom,
+                        buttonText: '이력서 파일 선택',
+                        helpText: 'PDF, DOC, DOCX, HWP 파일만 업로드 가능 (최대 10MB)',
+                        maxSizeMB: 10.0,
+                      ),
+                      const SizedBox(height: 32),
+
                       // 자기소개서
                       _buildSectionTitle('자기소개서'),
                       const SizedBox(height: 16),
@@ -522,12 +611,77 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
                       ),
                       const SizedBox(height: 32),
 
+                      // 업로드 진행 상태
+                      if (fileUploadState.isUploading) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text('파일 업로드 중...'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 에러 메시지
+                      if (fileUploadState.errorMessage != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error, color: Colors.red.shade600),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  fileUploadState.errorMessage!,
+                                  style: TextStyle(color: Colors.red.shade700),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  ref
+                                      .read(fileUploadProvider.notifier)
+                                      .clearError();
+                                },
+                                icon: const Icon(Icons.close),
+                                iconSize: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       // 등록 버튼
                       SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _submitForm,
+                          onPressed:
+                              (_isSubmitting || fileUploadState.isUploading)
+                                  ? null
+                                  : _submitForm,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[600],
                             foregroundColor: Colors.white,
@@ -537,7 +691,7 @@ class _ResumeEditPageState extends State<ResumeEditPage> {
                             elevation: 2,
                           ),
                           child:
-                              _isLoading
+                              _isSubmitting
                                   ? const SizedBox(
                                     width: 24,
                                     height: 24,

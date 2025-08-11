@@ -51,12 +51,28 @@ class ResumeService {
   }
 
   // 이력서 등록
-  Future<bool> createResume(Map<String, dynamic> resumeData) async {
+  Future<int?> createResume(Map<String, dynamic> resumeData) async {
     try {
-      await _dio.post('/api/resume', data: resumeData);
-      return true;
+      final response = await _dio.post('/api/resume', data: resumeData);
+
+      if (response.statusCode == 200) {
+        // 백엔드에서 반환된 응답 구조에 맞게 수정
+        final responseData = response.data;
+
+        // Map 타입인지 확인 후 resumeId 추출
+        if (responseData is Map<String, dynamic> &&
+            responseData.containsKey('resumeId')) {
+          return responseData['resumeId'] as int?;
+        }
+
+        // 만약 다른 구조라면 null 반환
+        print('예상과 다른 응답 구조: $responseData');
+        return null;
+      }
+      return null;
     } catch (e) {
-      throw Exception('이력서 등록에 실패했습니다: $e');
+      print('이력서 등록 실패: $e');
+      return null;
     }
   }
 
