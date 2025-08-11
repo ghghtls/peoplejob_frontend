@@ -22,6 +22,8 @@ import 'package:peoplejob_frontend/ui/pages/job/job_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/job/job_post_register_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/my_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/scrap/scrap_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/mypage/apply/apply_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/company/job_applications_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_product_selection_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_result_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_schedule_page.dart';
@@ -120,6 +122,9 @@ class MyApp extends ConsumerWidget {
         '/resume-list': (context) => const ResumeListPage(),
         '/resume-register': (context) => const ResumeEditPage(),
 
+        // 지원 관리 - 새로 추가
+        '/apply-list': (context) => const ApplyListPage(),
+
         // 공지사항
         '/notice': (context) => const NoticeListPage(),
 
@@ -202,7 +207,7 @@ class MyApp extends ConsumerWidget {
               builder: (context) => JobPostRegisterPage(jobId: jobId),
             );
 
-          // 이력서 동적 라우트 - 새로 추가
+          // 이력서 동적 라우트
           case '/resume-detail':
             final resumeId = settings.arguments as int;
             return MaterialPageRoute(
@@ -212,6 +217,14 @@ class MyApp extends ConsumerWidget {
             final resumeId = settings.arguments as int?;
             return MaterialPageRoute(
               builder: (context) => ResumeEditPage(resumeId: resumeId),
+            );
+
+          // 지원 관리 동적 라우트 - 새로 추가
+          case '/job-applications':
+            final jobOpeningNo = settings.arguments as int;
+            return MaterialPageRoute(
+              builder:
+                  (context) => JobApplicationsPage(jobOpeningNo: jobOpeningNo),
             );
         }
 
@@ -242,7 +255,7 @@ class MyApp extends ConsumerWidget {
           );
         }
 
-        // 기존 이력서 라우트 (호환성 유지) - 업데이트
+        // 기존 이력서 라우트 (호환성 유지)
         if (settings.name == '/resume/register') {
           // 기존 파라미터 방식 지원
           if (settings.arguments != null) {

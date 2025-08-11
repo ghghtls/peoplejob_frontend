@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../services/job_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/apply_service.dart';
+import '../../widgets/apply_dialog.dart';
 
 class JobDetailPage extends StatefulWidget {
   final int jobId;
@@ -15,10 +17,13 @@ class JobDetailPage extends StatefulWidget {
 class _JobDetailPageState extends State<JobDetailPage> {
   final JobService _jobService = JobService();
   final AuthService _authService = AuthService();
+  final ApplyService _applyService = ApplyService();
   Map<String, dynamic>? _jobDetail;
   bool _isLoading = true;
   bool _isScraped = false;
+  bool _hasApplied = false;
   String? _userRole;
+  String? _userType;
 
   @override
   void initState() {
@@ -38,6 +43,11 @@ class _JobDetailPageState extends State<JobDetailPage> {
         _jobDetail = jobDetail;
         _isLoading = false;
       });
+
+      // 개인회원인 경우 지원 여부 확인
+      if (_userType == 'user') {
+        _checkApplicationStatus();
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -52,7 +62,19 @@ class _JobDetailPageState extends State<JobDetailPage> {
     final userInfo = await _authService.getUserInfo();
     setState(() {
       _userRole = userInfo['role'];
+      _userType = userInfo['userType'];
     });
+  }
+
+  Future<void> _checkApplicationStatus() async {
+    try {
+      final hasApplied = await _applyService.hasAppliedToJob(widget.jobId);
+      setState(() {
+        _hasApplied = hasApplied;
+      });
+    } catch (e) {
+      // 에러 시 기본값 유지
+    }
   }
 
   String _formatDate(String? dateStr) {
@@ -98,43 +120,23 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  void _showApplyDialog() {
-    showDialog(
+  Future<void> _showApplyDialog() async {
+    final result = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('지원하기'),
-          content: const Text('이 채용공고에 지원하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _applyToJob();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[600],
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('지원하기'),
-            ),
-          ],
+        return ApplyDialog(
+          jobOpeningNo: widget.jobId,
+          jobTitle: _jobDetail!['title'] ?? '채용공고',
         );
       },
     );
-  }
 
-  void _applyToJob() {
-    // TODO: 실제 지원 로직 구현
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('지원이 완료되었습니다'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    // 지원 성공 시 상태 업데이트
+    if (result == true) {
+      setState(() {
+        _hasApplied = true;
+      });
+    }
   }
 
   void _editJob() {
@@ -180,6 +182,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
+  void _viewApplications() {
+    Navigator.pushNamed(context, '/job-applications', arguments: widget.jobId);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -213,7 +219,12 @@ class _JobDetailPageState extends State<JobDetailPage> {
         backgroundColor: Colors.blue[600],
         foregroundColor: Colors.white,
         actions: [
-          if (_userRole == 'company') ...[
+          if (_userType == 'company') ...[
+            IconButton(
+              icon: const Icon(Icons.people),
+              onPressed: _viewApplications,
+              tooltip: '지원자 목록',
+            ),
             IconButton(icon: const Icon(Icons.edit), onPressed: _editJob),
             IconButton(icon: const Icon(Icons.delete), onPressed: _deleteJob),
           ] else ...[
@@ -250,51 +261,89 @@ class _JobDetailPageState extends State<JobDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (!isExpired) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            daysRemaining <= 3
-                                ? Colors.red[100]
-                                : Colors.green[100],
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        daysRemaining <= 0 ? '오늘 마감' : 'D-$daysRemaining',
-                        style: TextStyle(
-                          color:
-                              daysRemaining <= 3
-                                  ? Colors.red[700]
-                                  : Colors.green[700],
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                  Row(
+                    children: [
+                      if (!isExpired) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                daysRemaining <= 3
+                                    ? Colors.red[100]
+                                    : Colors.green[100],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            daysRemaining <= 0 ? '오늘 마감' : 'D-$daysRemaining',
+                            style: TextStyle(
+                              color:
+                                  daysRemaining <= 3
+                                      ? Colors.red[700]
+                                      : Colors.green[700],
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ] else ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '모집 마감',
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '모집 마감',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+
+                      // 지원 상태 표시
+                      if (_userType == 'user' && _hasApplied) ...[
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[100],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                size: 16,
+                                color: Colors.orange[700],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '지원완료',
+                                style: TextStyle(
+                                  color: Colors.orange[700],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -355,7 +404,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
         ),
       ),
       bottomNavigationBar:
-          _userRole != 'company' && !isExpired
+          _userType == 'user' && !isExpired
               ? Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -373,20 +422,22 @@ class _JobDetailPageState extends State<JobDetailPage> {
                   child: SizedBox(
                     width: double.infinity,
                     height: 50,
-                    child: ElevatedButton(
-                      onPressed: _showApplyDialog,
+                    child: ElevatedButton.icon(
+                      onPressed: _hasApplied ? null : _showApplyDialog,
+                      icon: Icon(_hasApplied ? Icons.check : Icons.send),
+                      label: Text(
+                        _hasApplied ? '지원완료' : '지원하기',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[600],
+                        backgroundColor:
+                            _hasApplied ? Colors.grey[400] : Colors.blue[600],
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        '지원하기',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
