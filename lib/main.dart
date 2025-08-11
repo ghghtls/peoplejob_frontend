@@ -115,12 +115,10 @@ class MyApp extends ConsumerWidget {
         // 기존 공고 (호환성 유지)
         '/job': (context) => const JobListPage(),
 
-        // 이력서
+        // 이력서 - 업데이트된 라우트
         '/resume': (context) => const ResumeListPage(),
-        '/resume/detail':
-            (context) =>
-                const ResumeDetailPage(title: '', description: '', date: ''),
-        '/resume/register': (context) => const ResumeEditPage(),
+        '/resume-list': (context) => const ResumeListPage(),
+        '/resume-register': (context) => const ResumeEditPage(),
 
         // 공지사항
         '/notice': (context) => const NoticeListPage(),
@@ -191,7 +189,7 @@ class MyApp extends ConsumerWidget {
 
       /// ✨ onGenerateRoute → 동적 라우팅 처리
       onGenerateRoute: (settings) {
-        // 새로운 채용공고 라우트
+        // 채용공고 동적 라우트
         switch (settings.name) {
           case '/job-detail':
             final jobId = settings.arguments as int;
@@ -203,12 +201,23 @@ class MyApp extends ConsumerWidget {
             return MaterialPageRoute(
               builder: (context) => JobPostRegisterPage(jobId: jobId),
             );
+
+          // 이력서 동적 라우트 - 새로 추가
+          case '/resume-detail':
+            final resumeId = settings.arguments as int;
+            return MaterialPageRoute(
+              builder: (context) => ResumeDetailPage(resumeId: resumeId),
+            );
+          case '/resume-edit':
+            final resumeId = settings.arguments as int?;
+            return MaterialPageRoute(
+              builder: (context) => ResumeEditPage(resumeId: resumeId),
+            );
         }
 
-        // 기존 라우트들
+        // 게시판 라우트
         if (settings.name == '/board/edit') {
           final args = settings.arguments as Map<String, dynamic>;
-
           return MaterialPageRoute(
             builder:
                 (_) => BoardEditPage(
@@ -220,6 +229,7 @@ class MyApp extends ConsumerWidget {
           );
         }
 
+        // 공지사항 라우트
         if (settings.name == '/notice/detail') {
           final args = settings.arguments as Map<String, dynamic>;
           return MaterialPageRoute(
@@ -232,29 +242,38 @@ class MyApp extends ConsumerWidget {
           );
         }
 
+        // 기존 이력서 라우트 (호환성 유지) - 업데이트
         if (settings.name == '/resume/register') {
-          final args = settings.arguments as Map<String, dynamic>;
-
-          return MaterialPageRoute(
-            builder:
-                (_) => ResumeEditPage(
-                  initialTitle: args['title'] as String?,
-                  initialDescription: args['description'] as String?,
-                ),
-          );
+          // 기존 파라미터 방식 지원
+          if (settings.arguments != null) {
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder:
+                  (_) => ResumeEditPage(resumeId: args['resumeId'] as int?),
+            );
+          } else {
+            // 새 이력서 등록
+            return MaterialPageRoute(builder: (_) => const ResumeEditPage());
+          }
         }
 
         if (settings.name == '/resume/detail') {
-          // arguments가 필요하면 여기에 Map<String, dynamic> 처리
+          // 기존 파라미터 방식 지원
+          if (settings.arguments != null) {
+            final args = settings.arguments as Map<String, dynamic>;
+            if (args.containsKey('resumeId')) {
+              final resumeId = args['resumeId'] as int;
+              return MaterialPageRoute(
+                builder: (context) => ResumeDetailPage(resumeId: resumeId),
+              );
+            }
+          }
+          // 임시 처리 (기존 호환성)
           return MaterialPageRoute(
-            builder:
-                (_) => const ResumeDetailPage(
-                  title: '',
-                  description: '',
-                  date: '',
-                ),
+            builder: (_) => const ResumeDetailPage(resumeId: 0),
           );
         }
+
         // 기존 job/detail 라우트 (호환성 유지)
         if (settings.name == '/job/detail') {
           final args = settings.arguments as Map<String, dynamic>;
@@ -265,7 +284,7 @@ class MyApp extends ConsumerWidget {
               builder: (context) => JobDetailPage(jobId: jobId),
             );
           } else {
-            // 기존 방식 - 다른 JobDetailPage 클래스 필요하거나 임시 처리
+            // 기존 방식 - 임시 처리
             return MaterialPageRoute(
               builder:
                   (_) => JobDetailPage(
