@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../services/job_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/apply_service.dart';
+import '../../../services/scrap_service.dart';
 import '../../widgets/apply_dialog.dart';
 
 class JobDetailPage extends StatefulWidget {
@@ -18,6 +19,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
   final JobService _jobService = JobService();
   final AuthService _authService = AuthService();
   final ApplyService _applyService = ApplyService();
+  final ScrapService _scrapService = ScrapService();
   Map<String, dynamic>? _jobDetail;
   bool _isLoading = true;
   bool _isScraped = false;
@@ -44,9 +46,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
         _isLoading = false;
       });
 
-      // 개인회원인 경우 지원 여부 확인
+      // 개인회원인 경우 지원/스크랩 여부 확인
       if (_userType == 'user') {
         _checkApplicationStatus();
+        _checkScrapStatus();
       }
     } catch (e) {
       setState(() {
@@ -71,6 +74,17 @@ class _JobDetailPageState extends State<JobDetailPage> {
       final hasApplied = await _applyService.hasAppliedToJob(widget.jobId);
       setState(() {
         _hasApplied = hasApplied;
+      });
+    } catch (e) {
+      // 에러 시 기본값 유지
+    }
+  }
+
+  Future<void> _checkScrapStatus() async {
+    try {
+      final isScraped = await _scrapService.isScraped(widget.jobId);
+      setState(() {
+        _isScraped = isScraped;
       });
     } catch (e) {
       // 에러 시 기본값 유지
@@ -108,16 +122,36 @@ class _JobDetailPageState extends State<JobDetailPage> {
     }
   }
 
-  void _toggleScrap() {
-    setState(() {
-      _isScraped = !_isScraped;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_isScraped ? '스크랩에 추가되었습니다' : '스크랩에서 제거되었습니다'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  Future<void> _toggleScrap() async {
+    try {
+      if (_isScraped) {
+        await _scrapService.removeScrap(widget.jobId);
+        setState(() {
+          _isScraped = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('스크랩에서 제거되었습니다'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        await _scrapService.addScrap(widget.jobId);
+        setState(() {
+          _isScraped = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('스크랩에 추가되었습니다'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<void> _showApplyDialog() async {
@@ -229,8 +263,12 @@ class _JobDetailPageState extends State<JobDetailPage> {
             IconButton(icon: const Icon(Icons.delete), onPressed: _deleteJob),
           ] else ...[
             IconButton(
-              icon: Icon(_isScraped ? Icons.bookmark : Icons.bookmark_border),
+              icon: Icon(
+                _isScraped ? Icons.bookmark : Icons.bookmark_border,
+                color: _isScraped ? Colors.orange : Colors.white,
+              ),
               onPressed: _toggleScrap,
+              tooltip: _isScraped ? '스크랩 해제' : '스크랩 추가',
             ),
           ],
         ],
@@ -261,8 +299,11 @@ class _JobDetailPageState extends State<JobDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
+                      // 마감일 상태
                       if (!isExpired) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -311,7 +352,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
                       // 지원 상태 표시
                       if (_userType == 'user' && _hasApplied) ...[
-                        const SizedBox(width: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -334,6 +374,39 @@ class _JobDetailPageState extends State<JobDetailPage> {
                                 '지원완료',
                                 style: TextStyle(
                                   color: Colors.orange[700],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // 스크랩 상태 표시
+                      if (_userType == 'user' && _isScraped) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.purple[100],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.bookmark,
+                                size: 16,
+                                color: Colors.purple[700],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '스크랩됨',
+                                style: TextStyle(
+                                  color: Colors.purple[700],
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
@@ -419,28 +492,72 @@ class _JobDetailPageState extends State<JobDetailPage> {
                   ],
                 ),
                 child: SafeArea(
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: _hasApplied ? null : _showApplyDialog,
-                      icon: Icon(_hasApplied ? Icons.check : Icons.send),
-                      label: Text(
-                        _hasApplied ? '지원완료' : '지원하기',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                  child: Row(
+                    children: [
+                      // 스크랩 버튼
+                      Expanded(
+                        flex: 1,
+                        child: OutlinedButton.icon(
+                          onPressed: _toggleScrap,
+                          icon: Icon(
+                            _isScraped ? Icons.bookmark : Icons.bookmark_border,
+                            color:
+                                _isScraped
+                                    ? Colors.orange[600]
+                                    : Colors.grey[600],
+                          ),
+                          label: Text(
+                            _isScraped ? '스크랩됨' : '스크랩',
+                            style: TextStyle(
+                              color:
+                                  _isScraped
+                                      ? Colors.orange[600]
+                                      : Colors.grey[600],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color:
+                                  _isScraped
+                                      ? Colors.orange[600]!
+                                      : Colors.grey[400]!,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            minimumSize: const Size(0, 50),
+                          ),
                         ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            _hasApplied ? Colors.grey[400] : Colors.blue[600],
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      const SizedBox(width: 12),
+                      // 지원하기 버튼
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: _hasApplied ? null : _showApplyDialog,
+                          icon: Icon(_hasApplied ? Icons.check : Icons.send),
+                          label: Text(
+                            _hasApplied ? '지원완료' : '지원하기',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                _hasApplied
+                                    ? Colors.grey[400]
+                                    : Colors.blue[600],
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            minimumSize: const Size(0, 50),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               )
