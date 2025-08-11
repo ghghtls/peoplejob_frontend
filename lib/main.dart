@@ -2,12 +2,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:peoplejob_frontend/data/model/inquiry.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_write_page.dart';
 import 'package:peoplejob_frontend/ui/pages/company_mypage/company_mypage_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/home/home_page.dart';
+import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_form_page.dart';
 import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/login/login_page.dart';
@@ -228,6 +230,18 @@ class MyApp extends ConsumerWidget {
             final boardNo = settings.arguments as int;
             return MaterialPageRoute(
               builder: (context) => BoardWritePage(boardNo: boardNo),
+            );
+
+          // 문의사항 동적 라우트 추가
+          case '/inquiry-detail':
+            final inquiryNo = settings.arguments as int;
+            return MaterialPageRoute(
+              builder: (context) => InquiryDetailPage(inquiryNo: inquiryNo),
+            );
+          case '/inquiry-edit':
+            final inquiry = settings.arguments as Inquiry;
+            return MaterialPageRoute(
+              builder: (context) => InquiryFormPage(inquiry: inquiry),
             );
         }
 
