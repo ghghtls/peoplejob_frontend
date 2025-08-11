@@ -5,12 +5,20 @@ class SignUpLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        // TODO: 회원가입 페이지로 이동
-        print('회원가입 페이지 이동');
-      },
-      child: const Text('회원가입하기'),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('아직 회원이 아니신가요?'),
+        TextButton(
+          onPressed: () {
+            Navigator.pushNamed(context, '/register');
+          },
+          child: const Text(
+            '회원가입하기',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 }

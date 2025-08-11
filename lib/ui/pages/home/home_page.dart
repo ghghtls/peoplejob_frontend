@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:peoplejob_frontend/ui/pages/resources/job_news_page.dart';
+import 'package:peoplejob_frontend/services/auth_service.dart';
 import 'widgets/job_rolling_banner.dart';
 import 'widgets/job_random_section.dart';
 import 'widgets/job_recommend_section.dart';
@@ -7,8 +8,35 @@ import 'widgets/company_ads_section.dart';
 import 'widgets/notice_preview.dart';
 import 'widgets/resource_shortcuts.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final AuthService _authService = AuthService();
+  bool _isLoggedIn = false;
+  String? _userName;
+  String? _userType;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final token = await _authService.getToken();
+    final userInfo = await _authService.getUserInfo();
+
+    setState(() {
+      _isLoggedIn = token != null;
+      _userName = userInfo['name'];
+      _userType = userInfo['userType'];
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,33 +45,83 @@ class HomePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
           children: [
-            const Text(
-              "🔗 바로가기",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            // 로그인 상태에 따른 헤더
+            if (_isLoggedIn) ...[
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: Theme.of(context).primaryColor,
+                child: Text(
+                  _userName?.substring(0, 1) ?? 'U',
+                  style: const TextStyle(color: Colors.white, fontSize: 24),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$_userName님',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _userType == 'company' ? '기업회원' : '개인회원',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+            ] else ...[
+              const Text(
+                "🔗 바로가기",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/login'),
-              child: const Text('로그인'),
-            ),
+
+            // 로그인/로그아웃 버튼
+            if (_isLoggedIn) ...[
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await _authService.logout();
+                  Navigator.pushReplacementNamed(context, '/');
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('로그아웃'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[400],
+                ),
+              ),
+            ] else ...[
+              ElevatedButton(
+                onPressed: () => Navigator.pushNamed(context, '/login'),
+                child: const Text('로그인'),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => Navigator.pushNamed(context, '/register'),
+                child: const Text('회원가입'),
+              ),
+            ],
             const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/register'),
-              child: const Text('회원가입'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () {
-                const userType = 'user';
-                if (userType == 'company') {
-                  Navigator.pushNamed(context, '/companymypage');
-                } else {
-                  Navigator.pushNamed(context, '/mypage');
-                }
-              },
-              child: const Text('마이페이지'),
-            ),
-            const SizedBox(height: 12),
+
+            // 마이페이지 (로그인 시에만 표시)
+            if (_isLoggedIn) ...[
+              ElevatedButton(
+                onPressed: () {
+                  if (_userType == 'company') {
+                    Navigator.pushNamed(context, '/companymypage');
+                  } else {
+                    Navigator.pushNamed(context, '/mypage');
+                  }
+                },
+                child: const Text('마이페이지'),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // 공통 메뉴
             ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/board'),
               child: const Text('📋 게시판'),
@@ -76,11 +154,52 @@ class HomePage extends StatelessWidget {
             expandedHeight: 80,
             title: const Text('PeopleJob'),
             actions: [
+              // 로그인 상태 표시
+              if (_isLoggedIn) ...[
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Chip(
+                      label: Text(
+                        '$_userName님',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.white,
+                      avatar: Icon(
+                        _userType == 'company' ? Icons.business : Icons.person,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: '로그아웃',
+                  onPressed: () async {
+                    await _authService.logout();
+                    Navigator.pushReplacementNamed(context, '/');
+                  },
+                ),
+              ] else ...[
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(context, '/login'),
+                  child: const Text(
+                    '로그인',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(context, '/register'),
+                  child: const Text(
+                    '회원가입',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
               IconButton(
                 icon: const Icon(Icons.search),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/search');
-                },
+                tooltip: '검색',
+                onPressed: () => Navigator.pushNamed(context, '/search'),
               ),
             ],
           ),
