@@ -61,6 +61,16 @@ class AuthService {
     };
   }
 
+  // 역할 가져오기
+  Future<String?> getRole() async {
+    return await _storage.read(key: 'role');
+  }
+
+  // 사용자 타입 가져오기
+  Future<String?> getUserType() async {
+    return await _storage.read(key: 'userType');
+  }
+
   // 인증된 요청 보내기
   Future<http.Response> authenticatedGet(String endpoint) async {
     final token = await getToken();

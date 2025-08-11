@@ -38,6 +38,102 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Widget _buildQuickMenuSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '빠른 메뉴',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickMenuCard(
+                  icon: Icons.work,
+                  title: '채용공고',
+                  subtitle: '채용정보 확인',
+                  onTap: () => Navigator.pushNamed(context, '/job-list'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickMenuCard(
+                  icon: Icons.person_search,
+                  title: '인재검색',
+                  subtitle: '인재 찾기',
+                  onTap: () => Navigator.pushNamed(context, '/talent-search'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickMenuCard(
+                  icon: Icons.description,
+                  title: '이력서',
+                  subtitle: '이력서 관리',
+                  onTap: () => Navigator.pushNamed(context, '/resume-list'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickMenuCard(
+                  icon: Icons.announcement,
+                  title: '공지사항',
+                  subtitle: '최신 소식',
+                  onTap: () => Navigator.pushNamed(context, '/notice-list'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickMenuCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(icon, size: 32, color: Colors.blue[600]),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,7 +229,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/job'),
+              onPressed: () => Navigator.pushNamed(context, '/job-list'),
               child: const Text('📢 채용공고 보기'),
             ),
             const SizedBox(height: 12),
@@ -207,6 +303,9 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(16.0),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // 빠른 메뉴 섹션 추가
+                _buildQuickMenuSection(),
+                const SizedBox(height: 24),
                 const JobRollingBanner(),
                 const SizedBox(height: 24),
                 const JobRandomSection(),

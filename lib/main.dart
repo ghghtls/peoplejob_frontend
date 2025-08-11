@@ -19,6 +19,7 @@ import 'package:peoplejob_frontend/ui/pages/login/find_password_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/job/job_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/job/job_detail_page.dart';
+import 'package:peoplejob_frontend/ui/pages/job/job_post_register_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/my_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/scrap/scrap_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_product_selection_page.dart';
@@ -40,22 +41,16 @@ import 'package:peoplejob_frontend/ui/pages/payment/payment_page.dart';
 import 'package:peoplejob_frontend/ui/pages/search/search_page.dart';
 import 'package:peoplejob_frontend/ui/pages/search/talent_search_page.dart';
 import 'package:peoplejob_frontend/ui/pages/tools/word_count_page.dart';
-import 'package:peoplejob_frontend/ui/pages/user/user_home_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/admin/admin_dashboard_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_notice_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_user_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_board_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_popup_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/admin_home_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-
-/*Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env"); // dotenv 초기화
-  runApp(const ProviderScope(child: MyApp()));
-}*/
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,6 +88,11 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp(
       title: 'PeopleJob',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+        fontFamily: 'NotoSans',
+      ),
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
@@ -108,15 +108,12 @@ class MyApp extends ConsumerWidget {
         '/mypage': (context) => const MyPage(),
         '/companymypage': (context) => const CompanyMyPage(),
 
-        // 공고
+        // 채용공고 - 새로운 라우트 추가
+        '/job-list': (context) => const JobListPage(),
+        '/job-register': (context) => const JobPostRegisterPage(),
+
+        // 기존 공고 (호환성 유지)
         '/job': (context) => const JobListPage(),
-        '/job/detail':
-            (context) => const JobDetailPage(
-              title: '',
-              company: '',
-              location: '',
-              description: '',
-            ),
 
         // 이력서
         '/resume': (context) => const ResumeListPage(),
@@ -156,13 +153,14 @@ class MyApp extends ConsumerWidget {
         // 도구
         '/tools/wordcount': (context) => const WordCountPage(),
 
-        //스트랩
+        //스크랩
         '/scrap': (context) => const ScrapListPage(),
 
         //취업뉴스
         '/resources/news': (context) => const JobNewsPage(),
 
         // 관리자
+        '/admin': (context) => const AdminHomePage(),
         '/admin/dashboard':
             (context) =>
                 isAdmin ? const AdminDashboardPage() : const UnauthorizedPage(),
@@ -193,6 +191,21 @@ class MyApp extends ConsumerWidget {
 
       /// ✨ onGenerateRoute → 동적 라우팅 처리
       onGenerateRoute: (settings) {
+        // 새로운 채용공고 라우트
+        switch (settings.name) {
+          case '/job-detail':
+            final jobId = settings.arguments as int;
+            return MaterialPageRoute(
+              builder: (context) => JobDetailPage(jobId: jobId),
+            );
+          case '/job-edit':
+            final jobId = settings.arguments as int;
+            return MaterialPageRoute(
+              builder: (context) => JobPostRegisterPage(jobId: jobId),
+            );
+        }
+
+        // 기존 라우트들
         if (settings.name == '/board/edit') {
           final args = settings.arguments as Map<String, dynamic>;
 
@@ -218,6 +231,7 @@ class MyApp extends ConsumerWidget {
                 ),
           );
         }
+
         if (settings.name == '/resume/register') {
           final args = settings.arguments as Map<String, dynamic>;
 
@@ -229,6 +243,7 @@ class MyApp extends ConsumerWidget {
                 ),
           );
         }
+
         if (settings.name == '/resume/detail') {
           // arguments가 필요하면 여기에 Map<String, dynamic> 처리
           return MaterialPageRoute(
@@ -240,18 +255,24 @@ class MyApp extends ConsumerWidget {
                 ),
           );
         }
-
+        // 기존 job/detail 라우트 (호환성 유지)
         if (settings.name == '/job/detail') {
           final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder:
-                (_) => JobDetailPage(
-                  title: args['title'],
-                  company: args['company'],
-                  location: args['location'],
-                  description: args['description'],
-                ),
-          );
+          // jobId가 있으면 새로운 방식 사용, 없으면 기존 방식 유지
+          if (args.containsKey('jobId')) {
+            final jobId = args['jobId'] as int;
+            return MaterialPageRoute(
+              builder: (context) => JobDetailPage(jobId: jobId),
+            );
+          } else {
+            // 기존 방식 - 다른 JobDetailPage 클래스 필요하거나 임시 처리
+            return MaterialPageRoute(
+              builder:
+                  (_) => JobDetailPage(
+                    jobId: 0, // 임시값
+                  ),
+            );
+          }
         }
 
         return null;
