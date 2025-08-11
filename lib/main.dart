@@ -1,12 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_detail_page.dart';
-
-import 'package:peoplejob_frontend/ui/pages/board/board_edit_page.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/board/board_write_page.dart';
 import 'package:peoplejob_frontend/ui/pages/company_mypage/company_mypage_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/home/home_page.dart';
@@ -36,8 +34,6 @@ import 'package:peoplejob_frontend/ui/pages/resume/resume_list_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/notice/notice_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/notice/notice_detail_page.dart';
-
-import 'package:peoplejob_frontend/ui/pages/board/board_write_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/payment/payment_page.dart';
 import 'package:peoplejob_frontend/ui/pages/search/search_page.dart';
@@ -110,30 +106,25 @@ class MyApp extends ConsumerWidget {
         '/mypage': (context) => const MyPage(),
         '/companymypage': (context) => const CompanyMyPage(),
 
-        // 채용공고 - 새로운 라우트 추가
+        // 채용공고
         '/job-list': (context) => const JobListPage(),
         '/job-register': (context) => const JobPostRegisterPage(),
-
-        // 기존 공고 (호환성 유지)
         '/job': (context) => const JobListPage(),
 
-        // 이력서 - 업데이트된 라우트
+        // 이력서
         '/resume': (context) => const ResumeListPage(),
         '/resume-list': (context) => const ResumeListPage(),
         '/resume-register': (context) => const ResumeEditPage(),
 
-        // 지원 관리 - 새로 추가
+        // 지원 관리
         '/apply-list': (context) => const ApplyListPage(),
+
+        // 게시판 - 새로 추가
+        '/board': (context) => const BoardListPage(),
+        '/board-write': (context) => const BoardWritePage(),
 
         // 공지사항
         '/notice': (context) => const NoticeListPage(),
-
-        // 게시판
-        '/board/write': (context) => const BoardWritePage(),
-        '/board/detail':
-            (context) =>
-                const BoardDetailPage(title: '', content: '', date: ''),
-        '/board': (context) => const BoardListPage(),
 
         // 문의사항
         '/inquiry/list': (context) => const InquiryListPage(),
@@ -219,27 +210,25 @@ class MyApp extends ConsumerWidget {
               builder: (context) => ResumeEditPage(resumeId: resumeId),
             );
 
-          // 지원 관리 동적 라우트 - 새로 추가
+          // 지원 관리 동적 라우트
           case '/job-applications':
             final jobOpeningNo = settings.arguments as int;
             return MaterialPageRoute(
               builder:
                   (context) => JobApplicationsPage(jobOpeningNo: jobOpeningNo),
             );
-        }
 
-        // 게시판 라우트
-        if (settings.name == '/board/edit') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder:
-                (_) => BoardEditPage(
-                  initialTitle: args['title'] as String,
-                  initialContent: args['content'] as quill.Document,
-                  onSave:
-                      args['onSave'] as void Function(String, quill.Document),
-                ),
-          );
+          // 게시판 동적 라우트 - 새로 추가
+          case '/board-detail':
+            final boardNo = settings.arguments as int;
+            return MaterialPageRoute(
+              builder: (context) => BoardDetailPage(boardNo: boardNo),
+            );
+          case '/board-edit':
+            final boardNo = settings.arguments as int;
+            return MaterialPageRoute(
+              builder: (context) => BoardWritePage(boardNo: boardNo),
+            );
         }
 
         // 공지사항 라우트
@@ -305,6 +294,14 @@ class MyApp extends ConsumerWidget {
                   ),
             );
           }
+        }
+
+        // 기존 게시판 라우트 (호환성 유지) - 삭제된 BoardEditPage 제거
+        if (settings.name == '/board/detail') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => BoardDetailPage(boardNo: args['boardNo'] as int),
+          );
         }
 
         return null;
