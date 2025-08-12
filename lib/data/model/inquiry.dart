@@ -21,15 +21,23 @@ class Inquiry {
 
   factory Inquiry.fromJson(Map<String, dynamic> json) {
     return Inquiry(
-      inquiryNo: json['inquiryNo'],
-      userNo: json['userNo'],
-      title: json['title'] ?? '',
-      content: json['content'] ?? '',
-      regdate: json['regdate'],
-      answer: json['answer'],
-      answerDate: json['answerDate'],
-      status: json['status'] ?? 'WAIT',
+      inquiryNo: _parseToInt(json['inquiryNo']),
+      userNo: _parseToInt(json['userNo']),
+      title: json['title']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+      regdate: json['regdate']?.toString(),
+      answer: json['answer']?.toString(),
+      answerDate: json['answerDate']?.toString(),
+      status: json['status']?.toString() ?? 'WAIT',
     );
+  }
+
+  static int? _parseToInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    if (value is double) return value.toInt();
+    return null;
   }
 
   Map<String, dynamic> toJson() {

@@ -35,6 +35,16 @@ class AdminHomePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          AdminSectionTitle(title: '문의사항 관리'),
+          ListTile(
+            title: const Text('문의사항 목록/답변'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.pushNamed(context, '/admin/inquiry');
+            },
+          ),
+          const SizedBox(height: 16),
+
           AdminSectionTitle(title: '회원 관리'),
           ListTile(
             title: const Text('일반/기업회원 목록'),

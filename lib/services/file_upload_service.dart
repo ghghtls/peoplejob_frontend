@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 class FileUploadService {
   static const String baseUrl = 'http://localhost:8080/api/files';
@@ -210,6 +211,103 @@ class FileUploadService {
     }
   }
 
+  // 파일 다운로드
+  Future<String?> downloadFile(String fileUrl, {String? fileName}) async {
+    try {
+      final headers = await _getHeaders();
+
+      // 다운로드 디렉토리 가져오기
+      Directory? downloadDir;
+      if (Platform.isAndroid) {
+        downloadDir = await getExternalStorageDirectory();
+      } else {
+        downloadDir = await getApplicationDocumentsDirectory();
+      }
+
+      if (downloadDir == null) {
+        print('다운로드 디렉토리를 찾을 수 없습니다.');
+        return null;
+      }
+
+      // 파일명 설정
+      final downloadFileName =
+          fileName ?? 'download_${DateTime.now().millisecondsSinceEpoch}';
+      final savePath = '${downloadDir.path}/$downloadFileName';
+
+      // 파일 다운로드
+      final response = await _dio.download(
+        '$baseUrl/download',
+        savePath,
+        queryParameters: {'fileUrl': fileUrl},
+        options: Options(headers: headers),
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            print('다운로드 진행률: ${(received / total * 100).toStringAsFixed(1)}%');
+          }
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print('파일 다운로드 완료: $savePath');
+        return savePath;
+      }
+      return null;
+    } catch (e) {
+      print('파일 다운로드 실패: $e');
+      return null;
+    }
+  }
+
+  // 파일 목록 조회 (관리자용)
+  Future<Map<String, dynamic>?> getFileList({
+    String? type,
+    int page = 0,
+    int size = 20,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+
+      final response = await _dio.get(
+        '$baseUrl/admin/list',
+        queryParameters: {
+          if (type != null) 'type': type,
+          'page': page,
+          'size': size,
+        },
+        options: Options(headers: headers),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      return null;
+    } catch (e) {
+      print('파일 목록 조회 실패: $e');
+      return null;
+    }
+  }
+
+  // 파일 정보 조회
+  Future<Map<String, dynamic>?> getFileInfo(String fileUrl) async {
+    try {
+      final headers = await _getHeaders();
+
+      final response = await _dio.get(
+        '$baseUrl/info',
+        queryParameters: {'fileUrl': fileUrl},
+        options: Options(headers: headers),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      return null;
+    } catch (e) {
+      print('파일 정보 조회 실패: $e');
+      return null;
+    }
+  }
+
   // 파일 삭제
   Future<bool> deleteFile(String fileUrl) async {
     try {
@@ -252,5 +350,65 @@ class FileUploadService {
   bool isDocumentFile(File file) {
     const docExtensions = ['pdf', 'doc', 'docx', 'hwp', 'txt'];
     return isFileExtensionValid(file, docExtensions);
+  }
+
+  // 파일 크기를 읽기 쉬운 형태로 변환
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  // 여러 파일 다운로드 (압축)
+  Future<String?> downloadMultipleFiles(
+    List<String> fileUrls,
+    String zipFileName,
+  ) async {
+    try {
+      final headers = await _getHeaders();
+
+      // 다운로드 디렉토리 가져오기
+      Directory? downloadDir;
+      if (Platform.isAndroid) {
+        downloadDir = await getExternalStorageDirectory();
+      } else {
+        downloadDir = await getApplicationDocumentsDirectory();
+      }
+
+      if (downloadDir == null) {
+        print('다운로드 디렉토리를 찾을 수 없습니다.');
+        return null;
+      }
+
+      final savePath = '${downloadDir.path}/$zipFileName';
+
+      // 여러 파일 다운로드 요청
+      final response = await _dio.post(
+        '$baseUrl/download/multiple',
+        data: {'fileUrls': fileUrls, 'zipFileName': zipFileName},
+        options: Options(headers: headers, responseType: ResponseType.bytes),
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            print(
+              '압축 파일 다운로드 진행률: ${(received / total * 100).toStringAsFixed(1)}%',
+            );
+          }
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // 바이트 데이터를 파일로 저장
+        final file = File(savePath);
+        await file.writeAsBytes(response.data);
+        print('압축 파일 다운로드 완료: $savePath');
+        return savePath;
+      }
+      return null;
+    } catch (e) {
+      print('압축 파일 다운로드 실패: $e');
+      return null;
+    }
   }
 }

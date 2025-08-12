@@ -48,6 +48,7 @@ import 'package:peoplejob_frontend/ui/pages/admin/admin_user_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_board_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_popup_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_home_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/admin_inquiry_manage_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -180,6 +181,11 @@ class MyApp extends ConsumerWidget {
                 isAdmin
                     ? const AdminPopupManagePage()
                     : const UnauthorizedPage(),
+        '/admin/inquiry':
+            (context) =>
+                isAdmin
+                    ? const AdminInquiryManagePage()
+                    : const UnauthorizedPage(),
 
         // 권한 없음
         '/unauthorized': (context) => const UnauthorizedPage(),
@@ -220,7 +226,7 @@ class MyApp extends ConsumerWidget {
                   (context) => JobApplicationsPage(jobOpeningNo: jobOpeningNo),
             );
 
-          // 게시판 동적 라우트 - 새로 추가
+          // 게시판 동적 라우트
           case '/board-detail':
             final boardNo = settings.arguments as int;
             return MaterialPageRoute(
@@ -232,7 +238,14 @@ class MyApp extends ConsumerWidget {
               builder: (context) => BoardWritePage(boardNo: boardNo),
             );
 
-          // 문의사항 동적 라우트 추가
+          // 공지사항 동적 라우트 - 수정됨
+          case '/notice-detail':
+            final noticeId = settings.arguments as int;
+            return MaterialPageRoute(
+              builder: (context) => NoticeDetailPage(noticeId: noticeId),
+            );
+
+          // 문의사항 동적 라우트
           case '/inquiry-detail':
             final inquiryNo = settings.arguments as int;
             return MaterialPageRoute(
@@ -245,22 +258,31 @@ class MyApp extends ConsumerWidget {
             );
         }
 
-        // 공지사항 라우트
+        // 기존 공지사항 라우트 (호환성 유지) - 수정됨
         if (settings.name == '/notice/detail') {
           final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder:
-                (_) => NoticeDetailPage(
-                  title: args['title'] as String,
-                  content: args['content'] as String,
-                  date: args['date'] as String,
-                ),
-          );
+
+          // noticeId가 있으면 새로운 방식 사용
+          if (args.containsKey('noticeId')) {
+            return MaterialPageRoute(
+              builder:
+                  (context) =>
+                      NoticeDetailPage(noticeId: args['noticeId'] as int),
+            );
+          }
+          // 기존 방식 호환성 - 임시 처리 (실제로는 noticeId를 찾아야 함)
+          // 이 경우 title, content, date만으로는 NoticeDetailPage를 만들 수 없으므로
+          // 다른 방식으로 처리하거나 기존 데이터에서 noticeId를 찾아야 함
+          else {
+            // 임시로 ID 0 사용 (실제로는 적절한 ID를 찾아야 함)
+            return MaterialPageRoute(
+              builder: (context) => NoticeDetailPage(noticeId: 0),
+            );
+          }
         }
 
         // 기존 이력서 라우트 (호환성 유지)
         if (settings.name == '/resume/register') {
-          // 기존 파라미터 방식 지원
           if (settings.arguments != null) {
             final args = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
@@ -268,13 +290,11 @@ class MyApp extends ConsumerWidget {
                   (_) => ResumeEditPage(resumeId: args['resumeId'] as int?),
             );
           } else {
-            // 새 이력서 등록
             return MaterialPageRoute(builder: (_) => const ResumeEditPage());
           }
         }
 
         if (settings.name == '/resume/detail') {
-          // 기존 파라미터 방식 지원
           if (settings.arguments != null) {
             final args = settings.arguments as Map<String, dynamic>;
             if (args.containsKey('resumeId')) {
@@ -284,7 +304,6 @@ class MyApp extends ConsumerWidget {
               );
             }
           }
-          // 임시 처리 (기존 호환성)
           return MaterialPageRoute(
             builder: (_) => const ResumeDetailPage(resumeId: 0),
           );
@@ -293,24 +312,17 @@ class MyApp extends ConsumerWidget {
         // 기존 job/detail 라우트 (호환성 유지)
         if (settings.name == '/job/detail') {
           final args = settings.arguments as Map<String, dynamic>;
-          // jobId가 있으면 새로운 방식 사용, 없으면 기존 방식 유지
           if (args.containsKey('jobId')) {
             final jobId = args['jobId'] as int;
             return MaterialPageRoute(
               builder: (context) => JobDetailPage(jobId: jobId),
             );
           } else {
-            // 기존 방식 - 임시 처리
-            return MaterialPageRoute(
-              builder:
-                  (_) => JobDetailPage(
-                    jobId: 0, // 임시값
-                  ),
-            );
+            return MaterialPageRoute(builder: (_) => JobDetailPage(jobId: 0));
           }
         }
 
-        // 기존 게시판 라우트 (호환성 유지) - 삭제된 BoardEditPage 제거
+        // 기존 게시판 라우트 (호환성 유지)
         if (settings.name == '/board/detail') {
           final args = settings.arguments as Map<String, dynamic>;
           return MaterialPageRoute(
