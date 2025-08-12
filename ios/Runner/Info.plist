@@ -13,6 +13,14 @@
 	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>사진을 선택하기 위해 접근이 필요합니다.</string>
+
+	<!-- URL 스킴 허용 -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>mailto</string>
+        <string>tel</string>
+        <string>sms</string>
+    </array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
