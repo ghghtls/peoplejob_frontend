@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
-import '../../services/auth_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:peoplejob_frontend/services/auth_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
 import '../model/inquiry.dart';
 import '../model/job.dart';
 
@@ -106,13 +109,10 @@ class AdminNotifier extends StateNotifier<AdminState> {
       final headers = await _headers;
       await _dio.put(
         '$_baseUrl/inquiries/$inquiryNo/answer',
-        queryParameters: {
-          'answer': answer,
-          'answerBy': 'admin', // 현재 관리자 정보로 변경 필요
-        },
+        queryParameters: {'answer': answer, 'answerBy': 'admin'},
         options: Options(headers: headers),
       );
-      await loadInquiries(); // 목록 새로고침
+      await loadInquiries();
       return true;
     } catch (e) {
       state = state.copyWith(error: _handleError(e));
@@ -128,7 +128,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
         '$_baseUrl/inquiries/$inquiryNo',
         options: Options(headers: headers),
       );
-      await loadInquiries(); // 목록 새로고침
+      await loadInquiries();
       return true;
     } catch (e) {
       state = state.copyWith(error: _handleError(e));
@@ -159,7 +159,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
         '$_baseUrl/users/$userNo',
         options: Options(headers: headers),
       );
-      await loadUsers(); // 목록 새로고침
+      await loadUsers();
       return true;
     } catch (e) {
       state = state.copyWith(error: _handleError(e));
@@ -192,7 +192,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
         '$_baseUrl/jobs/$jobNo',
         options: Options(headers: headers),
       );
-      await loadJobs(); // 목록 새로고침
+      await loadJobs();
       return true;
     } catch (e) {
       state = state.copyWith(error: _handleError(e));
@@ -212,6 +212,82 @@ class AdminNotifier extends StateNotifier<AdminState> {
       state = state.copyWith(payments: response.data, isLoading: false);
     } catch (e) {
       state = state.copyWith(error: _handleError(e), isLoading: false);
+    }
+  }
+
+  // ============ Excel 다운로드 기능 ============
+
+  // 회원 목록 Excel 다운로드
+  Future<String?> downloadUsersExcel() async {
+    return _downloadExcel('excel/users', '회원목록');
+  }
+
+  // 채용공고 Excel 다운로드
+  Future<String?> downloadJobsExcel() async {
+    return _downloadExcel('excel/jobs', '채용공고목록');
+  }
+
+  // 문의사항 Excel 다운로드
+  Future<String?> downloadInquiriesExcel() async {
+    return _downloadExcel('excel/inquiries', '문의사항목록');
+  }
+
+  // 지원자 목록 Excel 다운로드
+  Future<String?> downloadApplicantsExcel(int jobNo) async {
+    return _downloadExcel('excel/applicants/$jobNo', '지원자목록_$jobNo');
+  }
+
+  // 결제 내역 Excel 다운로드
+  Future<String?> downloadPaymentsExcel() async {
+    return _downloadExcel('excel/payments', '결제내역목록');
+  }
+
+  // 공통 Excel 다운로드 메서드
+  Future<String?> _downloadExcel(String endpoint, String fileName) async {
+    try {
+      // 권한 확인
+      if (Platform.isAndroid) {
+        final permission = await Permission.storage.request();
+        if (!permission.isGranted) {
+          state = state.copyWith(error: '저장소 권한이 필요합니다.');
+          return null;
+        }
+      }
+
+      // 다운로드 디렉토리 가져오기
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+        final downloadPath = '/storage/emulated/0/Download';
+        directory = Directory(downloadPath);
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+
+      if (directory == null) {
+        state = state.copyWith(error: '다운로드 폴더를 찾을 수 없습니다.');
+        return null;
+      }
+
+      final headers = await _headers;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final downloadFileName = '${fileName}_$timestamp.xlsx';
+      final filePath = '${directory.path}/$downloadFileName';
+
+      // Excel 파일 다운로드
+      final response = await _dio.get(
+        '$_baseUrl/$endpoint',
+        options: Options(headers: headers, responseType: ResponseType.bytes),
+      );
+
+      // 파일 저장
+      final file = File(filePath);
+      await file.writeAsBytes(response.data);
+
+      return filePath;
+    } catch (e) {
+      state = state.copyWith(error: _handleError(e));
+      return null;
     }
   }
 
