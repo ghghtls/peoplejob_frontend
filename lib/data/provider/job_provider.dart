@@ -738,3 +738,40 @@ final selectedJobProvider = Provider<Job?>((ref) {
   final jobState = ref.watch(jobProvider);
   return jobState.selectedJob;
 });
+
+// AsyncValue 형태로 채용공고 목록을 제공하는 Provider
+final jobListProvider = Provider<AsyncValue<List<Job>>>((ref) {
+  final jobState = ref.watch(jobProvider);
+
+  if (jobState.isLoading && jobState.jobs.isEmpty) {
+    return const AsyncValue.loading();
+  }
+
+  if (jobState.error != null) {
+    return AsyncValue.error(jobState.error!, StackTrace.current);
+  }
+
+  return AsyncValue.data(jobState.jobs);
+});
+
+// 게시된 채용공고만 가져오는 Provider (홈페이지용)
+final publishedJobListProvider = FutureProvider<List<Job>>((ref) async {
+  final notifier = ref.read(jobProvider.notifier);
+  await notifier.loadPublishedJobs(refresh: true);
+  final state = ref.read(jobProvider);
+
+  if (state.error != null) {
+    throw Exception(state.error);
+  }
+
+  return state.jobs;
+});
+
+// 랜덤 채용공고 Provider (홈페이지 랜덤 섹션용)
+final randomJobListProvider = FutureProvider<List<Job>>((ref) async {
+  final publishedJobs = await ref.watch(publishedJobListProvider.future);
+
+  // 최대 10개까지만 랜덤으로 선택
+  final shuffledJobs = List<Job>.from(publishedJobs)..shuffle();
+  return shuffledJobs.take(10).toList();
+});
