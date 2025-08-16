@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:peoplejob_frontend/data/model/inquiry.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_list_page.dart';
@@ -42,6 +42,7 @@ import 'package:peoplejob_frontend/ui/pages/search/search_page.dart';
 import 'package:peoplejob_frontend/ui/pages/search/talent_search_page.dart';
 import 'package:peoplejob_frontend/ui/pages/tools/word_count_page.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 import 'package:peoplejob_frontend/ui/pages/admin/admin_dashboard_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_notice_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_user_manage_page.dart';
@@ -53,12 +54,15 @@ import 'package:peoplejob_frontend/ui/pages/admin/admin_inquiry_manage_page.dart
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import 'package:peoplejob_frontend/data/provider/notification_provider.dart';
+import 'package:provider/provider.dart' as pv;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
 
   if (kIsWeb) {
-    //  Web은 수동 초기화 필요
+    // Web은 수동 초기화 필요
     await Firebase.initializeApp(
       options: FirebaseOptions(
         apiKey: dotenv.env['FIREBASE_API_KEY']!,
@@ -70,21 +74,33 @@ void main() async {
       ),
     );
   } else {
-    //  Android/iOS는 설정파일로 자동 처리, 절대 중복 초기화 금지
+    // Android/iOS는 설정파일로 자동 처리, 절대 중복 초기화 금지
     await Firebase.initializeApp();
   }
 
-  runApp(const ProviderScope(child: MyApp()));
+  // Riverpod + provider(알림용) 함께 사용
+  runApp(
+    fr.ProviderScope(
+      child: pv.MultiProvider(
+        providers: [
+          pv.ChangeNotifierProvider<NotificationProvider>(
+            create: (_) => NotificationProvider(),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    ),
+  );
 }
 
-// 관리자 여부 Provider
-final isAdminProvider = StateProvider<bool>((ref) => false);
+// 관리자 여부 Provider (Riverpod)
+final isAdminProvider = fr.StateProvider<bool>((ref) => false);
 
-class MyApp extends ConsumerWidget {
+class MyApp extends fr.ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, fr.WidgetRef ref) {
     final isAdmin = ref.watch(isAdminProvider);
 
     return MaterialApp(
@@ -122,7 +138,7 @@ class MyApp extends ConsumerWidget {
         // 지원 관리
         '/apply-list': (context) => const ApplyListPage(),
 
-        // 게시판 - 새로 추가
+        // 게시판
         '/board': (context) => const BoardListPage(),
         '/board-write': (context) => const BoardWritePage(),
 
@@ -150,10 +166,10 @@ class MyApp extends ConsumerWidget {
         // 도구
         '/tools/wordcount': (context) => const WordCountPage(),
 
-        //스크랩
+        // 스크랩
         '/scrap': (context) => const ScrapListPage(),
 
-        //취업뉴스
+        // 취업뉴스
         '/resources/news': (context) => const JobNewsPage(),
 
         // 관리자
@@ -238,7 +254,7 @@ class MyApp extends ConsumerWidget {
               builder: (context) => BoardWritePage(boardNo: boardNo),
             );
 
-          // 공지사항 동적 라우트 - 수정됨
+          // 공지사항 동적 라우트
           case '/notice-detail':
             final noticeId = settings.arguments as int;
             return MaterialPageRoute(
@@ -258,23 +274,18 @@ class MyApp extends ConsumerWidget {
             );
         }
 
-        // 기존 공지사항 라우트 (호환성 유지) - 수정됨
+        // 기존 공지사항 라우트 (호환성 유지)
         if (settings.name == '/notice/detail') {
           final args = settings.arguments as Map<String, dynamic>;
 
-          // noticeId가 있으면 새로운 방식 사용
           if (args.containsKey('noticeId')) {
             return MaterialPageRoute(
               builder:
                   (context) =>
                       NoticeDetailPage(noticeId: args['noticeId'] as int),
             );
-          }
-          // 기존 방식 호환성 - 임시 처리 (실제로는 noticeId를 찾아야 함)
-          // 이 경우 title, content, date만으로는 NoticeDetailPage를 만들 수 없으므로
-          // 다른 방식으로 처리하거나 기존 데이터에서 noticeId를 찾아야 함
-          else {
-            // 임시로 ID 0 사용 (실제로는 적절한 ID를 찾아야 함)
+          } else {
+            // 임시로 ID 0 사용 (실제에선 적절한 ID 조회 필요)
             return MaterialPageRoute(
               builder: (context) => NoticeDetailPage(noticeId: 0),
             );

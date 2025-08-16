@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart';
 import 'package:peoplejob_frontend/data/model/notification_model.dart';
 import 'package:peoplejob_frontend/data/provider/notification_provider.dart';
+import 'package:provider/provider.dart';
 
 class NotificationPage extends StatefulWidget {
   final String token;
@@ -74,34 +74,35 @@ class _NotificationPageState extends State<NotificationPage>
             IconButton(
               icon: const Icon(Icons.select_all),
               onPressed: _selectAll,
+              tooltip: '전체 선택',
             ),
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: _deleteSelected,
+              tooltip: '선택 삭제',
             ),
             IconButton(
               icon: const Icon(Icons.mark_email_read),
               onPressed: _markSelectedAsRead,
+              tooltip: '선택 읽음 처리',
             ),
             IconButton(
               icon: const Icon(Icons.close),
               onPressed: _exitSelectionMode,
+              tooltip: '선택 모드 종료',
             ),
           ] else ...[
             PopupMenuButton<String>(
               onSelected: _handleMenuAction,
               itemBuilder:
-                  (context) => [
-                    const PopupMenuItem(
+                  (context) => const [
+                    PopupMenuItem(
                       value: 'markAllRead',
                       child: Text('모두 읽음 처리'),
                     ),
-                    const PopupMenuItem(
-                      value: 'deleteAll',
-                      child: Text('모두 삭제'),
-                    ),
-                    const PopupMenuItem(value: 'refresh', child: Text('새로고침')),
-                    const PopupMenuItem(value: 'select', child: Text('선택 모드')),
+                    PopupMenuItem(value: 'deleteAll', child: Text('모두 삭제')),
+                    PopupMenuItem(value: 'refresh', child: Text('새로고침')),
+                    PopupMenuItem(value: 'select', child: Text('선택 모드')),
                   ],
             ),
           ],
@@ -131,8 +132,9 @@ class _NotificationPageState extends State<NotificationPage>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(provider.error!),
+                const SizedBox(height: 8),
                 ElevatedButton(
-                  onPressed: () => _loadInitialData(),
+                  onPressed: _loadInitialData,
                   child: const Text('다시 시도'),
                 ),
               ],
@@ -294,7 +296,7 @@ class _NotificationPageState extends State<NotificationPage>
             _isSelectionMode
                 ? Checkbox(
                   value: isSelected,
-                  onChanged: (value) => _toggleSelection(notification.id),
+                  onChanged: (_) => _toggleSelection(notification.id),
                 )
                 : CircleAvatar(
                   backgroundColor: _getTypeColorFromString(notification.type),
@@ -363,19 +365,20 @@ class _NotificationPageState extends State<NotificationPage>
   void _onNotificationTap(NotificationModel notification) {
     if (_isSelectionMode) {
       _toggleSelection(notification.id);
-    } else {
-      // 읽지 않은 알림이면 읽음 처리
-      if (notification.isUnread) {
-        context.read<NotificationProvider>().markAsRead(
-          widget.token,
-          notification.id,
-        );
-      }
+      return;
+    }
 
-      // 액션 URL이 있으면 해당 페이지로 이동
-      if (notification.actionUrl != null) {
-        _navigateToActionUrl(notification.actionUrl!);
-      }
+    // 읽지 않은 알림이면 읽음 처리
+    if (notification.isUnread) {
+      context.read<NotificationProvider>().markAsRead(
+        widget.token,
+        notification.id,
+      );
+    }
+
+    // 액션 URL이 있으면 해당 페이지로 이동
+    if (notification.actionUrl != null) {
+      _navigateToActionUrl(notification.actionUrl!);
     }
   }
 
@@ -477,7 +480,7 @@ class _NotificationPageState extends State<NotificationPage>
   void _markSelectedAsRead() {
     if (_selectedNotifications.isEmpty) return;
 
-    // 개별적으로 읽음 처리 (일괄 처리 API 추가 시 변경 가능)
+    // (일괄 API 있으면 교체)
     final provider = context.read<NotificationProvider>();
     for (final id in _selectedNotifications) {
       provider.markAsRead(widget.token, id);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:peoplejob_frontend/data/provider/notification_provider.dart';
+import 'package:peoplejob_frontend/ui/pages/notification/notification_page.dart';
 import 'package:provider/provider.dart';
-import 'notification_provider.dart';
-import 'notification_page.dart';
 
 /// 알림 아이콘과 뱃지를 표시하는 위젯
 class NotificationBadge extends StatefulWidget {
@@ -46,6 +46,7 @@ class _NotificationBadgeState extends State<NotificationBadge> {
                 size: widget.iconSize ?? 24,
               ),
               onPressed: () => _navigateToNotifications(context),
+              tooltip: '알림 보기',
             ),
             if (provider.unreadCount > 0)
               Positioned(
@@ -128,8 +129,9 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
   }
 
   void _openDropdown() {
+    if (_isOpen) return;
     _overlayEntry = _createOverlayEntry();
-    Overlay.of(context)?.insert(_overlayEntry!);
+    Overlay.of(context).insert(_overlayEntry!);
     setState(() {
       _isOpen = true;
     });
@@ -141,15 +143,17 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
   void _closeDropdown() {
     _overlayEntry?.remove();
     _overlayEntry = null;
-    setState(() {
-      _isOpen = false;
-    });
+    if (_isOpen) {
+      setState(() {
+        _isOpen = false;
+      });
+    }
   }
 
   OverlayEntry _createOverlayEntry() {
-    RenderBox renderBox = context.findRenderObject() as RenderBox;
-    var size = renderBox.size;
-    var offset = renderBox.localToGlobal(Offset.zero);
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
 
     return OverlayEntry(
       builder:
@@ -221,12 +225,14 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
                             return const Center(child: Text('새로운 알림이 없습니다.'));
                           }
 
+                          // 안전하게 5개까지만 잘라서 사용
+                          final items =
+                              provider.unreadNotifications.take(5).toList();
+
                           return ListView.builder(
-                            itemCount:
-                                provider.unreadNotifications.take(5).length,
+                            itemCount: items.length,
                             itemBuilder: (context, index) {
-                              final notification =
-                                  provider.unreadNotifications[index];
+                              final notification = items[index];
                               return ListTile(
                                 leading: CircleAvatar(
                                   radius: 16,
@@ -389,7 +395,7 @@ class NotificationToast {
           ),
     );
 
-    overlay?.insert(overlayEntry);
+    overlay.insert(overlayEntry);
 
     Future.delayed(duration, () {
       overlayEntry.remove();
