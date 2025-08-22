@@ -1,0 +1,18 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "테스트 사용자",
+      "email": "test@example.com",
+      "userType": "INDIVIDUAL"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 1,
+      "title": "백엔드 개발자",
+      "company": "테스트 회사",
+      "location": "서울"
+    }
+  ]
+}

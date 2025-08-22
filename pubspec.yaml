@@ -1,32 +1,12 @@
 name: peoplejob_frontend
 description: "A new Flutter project."
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: 'none'
 
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
 version: 1.0.0+1
 
 environment:
   sdk: ^3.7.2
 
-# Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
     sdk: flutter
@@ -35,8 +15,6 @@ dependencies:
   flutter_quill_extensions: ^11.0.0
   file_picker: ^10.2.0
   flutter_secure_storage: ^9.0.0
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   go_router: ^15.1.0
@@ -55,71 +33,74 @@ dependencies:
   permission_handler: ^11.1.0
   cached_network_image: ^3.3.0 
   provider: ^6.1.2
-  # 로컬 저장소 및 캐싱
   shared_preferences: ^2.2.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-   # 암호화 및 보안
   crypto: ^3.0.3
   encrypt: ^5.0.1
-  
-  # 네트워크 상태 확인
   connectivity_plus: ^5.0.1
-  
-  # 로깅
   logger: ^2.0.2
-  
 
 dev_dependencies:
+  # 기본 테스트 프레임워크
   flutter_test:
     sdk: flutter
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  
+  # 통합 테스트
+  integration_test:
+    sdk: flutter
+  
+  # Mock 및 테스트 유틸리티
+  mockito: ^5.4.4
+  build_runner: ^2.4.9
+  
+  # HTTP 모킹
+  http_mock_adapter: ^0.6.1
+  nock: ^1.2.3
+  
+  # 테스트 데이터 생성
+  faker: ^2.1.0
+  
+  # 테스트 리포팅
+  test_cov: ^0.5.0
+  lcov: ^6.1.0
+  
+  # 위젯 테스트 헬퍼
+  patrol: ^3.6.1
+  golden_toolkit: ^0.15.0
+  
+  # 성능 테스트
+  flutter_driver:
+    sdk: flutter
+  
+  # 접근성 테스트
+  flutter_accessibility_service: ^0.2.0
+  
+  # 코드 품질
+  dart_code_metrics: ^5.7.6
+  very_good_analysis: ^6.0.0
+  
+  # Firebase 테스트
+  firebase_auth_mocks: ^0.13.0
+  cloud_firestore_mocks: ^0.17.0
+  firebase_storage_mocks: ^0.7.0
+  
+  # 네트워크 테스트
+  dio_test: ^0.1.0
+  network_image_mock: ^2.1.1
+  
+  # 상태 관리 테스트
+  riverpod_test: ^2.0.0
+  provider_test: ^1.1.0
+  
+  # 플랫폼 특정 테스트
+  plugin_platform_interface: ^2.1.8
+  platform: ^3.1.4
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
-
-  # To add assets to your application, add an assets section, like this:
   assets:
     - .env
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
-
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
-
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
-
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+    - test/fixtures/
+    - test/golden_files/
