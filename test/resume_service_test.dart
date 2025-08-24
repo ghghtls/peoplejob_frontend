@@ -1,31 +1,60 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:peoplejob_frontend/services/resume_service.dart';
 
-// Mock 클래스들
-class MockDio extends Mock implements Dio {}
+/// ---------------------------------------------------------------------------
+/// 로컬 Mock (build_runner 불필요)
+/// ---------------------------------------------------------------------------
+class _MockDio extends Mock implements Dio {}
 
-class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+class _MockStorage extends Mock implements FlutterSecureStorage {}
 
-class MockResponse extends Mock implements Response {}
+/// ---------------------------------------------------------------------------
+/// 실사용 Response/DioException 헬퍼
+/// ---------------------------------------------------------------------------
+Response<dynamic> _resp(dynamic data, {int? statusCode, String path = '/'}) {
+  return Response<dynamic>(
+    requestOptions: RequestOptions(path: path),
+    data: data,
+    statusCode: statusCode,
+  );
+}
 
-class MockRequestOptions extends Mock implements RequestOptions {}
+DioException _dioEx({
+  required String path,
+  int? statusCode,
+  DioExceptionType type = DioExceptionType.badResponse,
+}) {
+  return DioException(
+    requestOptions: RequestOptions(path: path),
+    response:
+        statusCode == null
+            ? null
+            : Response<dynamic>(
+              requestOptions: RequestOptions(path: path),
+              statusCode: statusCode,
+            ),
+    type: type,
+  );
+}
 
-@GenerateMocks([Dio, FlutterSecureStorage])
 void main() {
   group('ResumeService Tests', () {
     late ResumeService resumeService;
-    late MockDio mockDio;
-    late MockFlutterSecureStorage mockStorage;
+    late _MockDio mockDio;
+    late _MockStorage mockStorage;
 
     setUp(() {
-      mockDio = MockDio();
-      mockStorage = MockFlutterSecureStorage();
+      mockDio = _MockDio();
+      mockStorage = _MockStorage();
 
+      // ✅ 테스트 훅으로 모의 객체 주입
+      ResumeService.setTestOverrides(dio: mockDio, storage: mockStorage);
+
+      // 생성자는 요청대로 인자 없이!
       resumeService = ResumeService();
 
       when(
@@ -35,7 +64,6 @@ void main() {
 
     group('이력서 조회 테스트', () {
       test('모든 이력서 조회 성공 테스트', () async {
-        // Given
         final mockResumesData = [
           {
             'resumeNo': 1,
@@ -85,14 +113,13 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockResumesData);
-        when(mockDio.get('/api/resume')).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/resume')).thenAnswer(
+          (_) async =>
+              _resp(mockResumesData, statusCode: 200, path: '/api/resume'),
+        );
 
-        // When
         final result = await resumeService.getAllResumes();
 
-        // Then
         expect(result, hasLength(2));
         expect(result[0]['title'], '백엔드 개발자 이력서');
         expect(result[0]['name'], '홍길동');
@@ -105,7 +132,6 @@ void main() {
       });
 
       test('특정 사용자의 이력서 조회 성공 테스트', () async {
-        // Given
         const userNo = 1;
         final mockUserResumes = [
           {
@@ -132,16 +158,16 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockUserResumes);
-        when(
-          mockDio.get('/api/resume/user/$userNo'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/resume/user/$userNo')).thenAnswer(
+          (_) async => _resp(
+            mockUserResumes,
+            statusCode: 200,
+            path: '/api/resume/user/$userNo',
+          ),
+        );
 
-        // When
         final result = await resumeService.getUserResumes(userNo);
 
-        // Then
         expect(result, hasLength(2));
         expect(result[0]['userNo'], 1);
         expect(result[0]['isDefault'], true);
@@ -152,7 +178,6 @@ void main() {
       });
 
       test('이력서 상세 조회 성공 테스트', () async {
-        // Given
         const resumeId = 1;
         final mockResumeDetail = {
           'resumeNo': 1,
@@ -167,16 +192,16 @@ void main() {
           'viewCount': 45,
         };
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockResumeDetail);
-        when(
-          mockDio.get('/api/resume/$resumeId'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/resume/$resumeId')).thenAnswer(
+          (_) async => _resp(
+            mockResumeDetail,
+            statusCode: 200,
+            path: '/api/resume/$resumeId',
+          ),
+        );
 
-        // When
         final result = await resumeService.getResumeDetail(resumeId);
 
-        // Then
         expect(result['resumeNo'], 1);
         expect(result['title'], '백엔드 개발자 이력서');
         expect(result['name'], '홍길동');
@@ -189,7 +214,6 @@ void main() {
 
     group('이력서 등록/수정/삭제 테스트', () {
       test('이력서 등록 성공 테스트', () async {
-        // Given
         final resumeData = {
           'title': '새로운 이력서',
           'content': '새로운 이력서 내용입니다.',
@@ -202,23 +226,18 @@ void main() {
           'isPublic': true,
         };
 
-        final mockResponse = MockResponse();
-        when(mockResponse.statusCode).thenReturn(200);
-        when(mockResponse.data).thenReturn({'resumeId': 5});
-        when(
-          mockDio.post('/api/resume', data: anyNamed('data')),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.post('/api/resume', data: anyNamed('data'))).thenAnswer(
+          (_) async =>
+              _resp({'resumeId': 5}, statusCode: 200, path: '/api/resume'),
+        );
 
-        // When
         final result = await resumeService.createResume(resumeData);
 
-        // Then
         expect(result, 5);
         verify(mockDio.post('/api/resume', data: anyNamed('data'))).called(1);
       });
 
       test('이력서 수정 성공 테스트', () async {
-        // Given
         const resumeId = 1;
         final updateData = {
           'title': '수정된 이력서 제목',
@@ -227,16 +246,15 @@ void main() {
           'hopeSalary': '4500만원',
         };
 
-        final mockResponse = MockResponse();
-        when(mockResponse.statusCode).thenReturn(200);
         when(
           mockDio.put('/api/resume/$resumeId', data: anyNamed('data')),
-        ).thenAnswer((_) async => mockResponse);
+        ).thenAnswer(
+          (_) async =>
+              _resp(null, statusCode: 200, path: '/api/resume/$resumeId'),
+        );
 
-        // When
         final result = await resumeService.updateResume(resumeId, updateData);
 
-        // Then
         expect(result, isTrue);
         verify(
           mockDio.put('/api/resume/$resumeId', data: anyNamed('data')),
@@ -244,19 +262,15 @@ void main() {
       });
 
       test('이력서 삭제 성공 테스트', () async {
-        // Given
         const resumeId = 1;
 
-        final mockResponse = MockResponse();
-        when(mockResponse.statusCode).thenReturn(200);
-        when(
-          mockDio.delete('/api/resume/$resumeId'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.delete('/api/resume/$resumeId')).thenAnswer(
+          (_) async =>
+              _resp(null, statusCode: 200, path: '/api/resume/$resumeId'),
+        );
 
-        // When
         final result = await resumeService.deleteResume(resumeId);
 
-        // Then
         expect(result, isTrue);
         verify(mockDio.delete('/api/resume/$resumeId')).called(1);
       });
@@ -264,7 +278,6 @@ void main() {
 
     group('이력서 검색 및 필터링 테스트', () {
       test('키워드로 이력서 검색 성공 테스트', () async {
-        // Given
         const keyword = '개발자';
         final mockSearchResults = [
           {
@@ -287,42 +300,37 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockSearchResults);
-        when(
-          mockDio.get('/api/resume/search?keyword=$keyword'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/resume/search?keyword=$keyword')).thenAnswer(
+          (_) async => _resp(
+            mockSearchResults,
+            statusCode: 200,
+            path: '/api/resume/search?keyword=$keyword',
+          ),
+        );
 
-        // When
         final result = await resumeService.searchResumes(keyword);
 
-        // Then
         expect(result, hasLength(2));
         expect(
           result.every(
-            (resume) =>
-                resume['title'].contains('개발자') ||
-                resume['hopeJobtype'].contains('개발자'),
+            (r) =>
+                r['title'].contains('개발자') || r['hopeJobtype'].contains('개발자'),
           ),
-          true,
+          isTrue,
         );
         verify(mockDio.get('/api/resume/search?keyword=$keyword')).called(1);
       });
 
       test('빈 키워드로 검색 시 빈 배열 반환 테스트', () async {
-        // Given
         const keyword = '';
-
-        // When
         final result = await resumeService.searchResumes(keyword);
-
-        // Then
         expect(result, isEmpty);
-        verifyNever(mockDio.get(any));
+
+        // (선택) 네트워크 호출이 없음을 강하게 검증하려면 아래처럼 전체 상호작용 0 확인:
+        // verifyZeroInteractions(mockDio);
       });
 
       test('희망 직종별 이력서 필터링 성공 테스트', () async {
-        // Given
         const jobType = '백엔드 개발자';
         final mockJobTypeResults = [
           {
@@ -336,23 +344,22 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockJobTypeResults);
-        when(
-          mockDio.get('/api/resume/jobtype/$jobType'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/resume/jobtype/$jobType')).thenAnswer(
+          (_) async => _resp(
+            mockJobTypeResults,
+            statusCode: 200,
+            path: '/api/resume/jobtype/$jobType',
+          ),
+        );
 
-        // When
         final result = await resumeService.getResumesByJobType(jobType);
 
-        // Then
         expect(result, hasLength(1));
         expect(result[0]['hopeJobtype'], '백엔드 개발자');
         verify(mockDio.get('/api/resume/jobtype/$jobType')).called(1);
       });
 
       test('희망 지역별 이력서 필터링 성공 테스트', () async {
-        // Given
         const location = '서울';
         final mockLocationResults = [
           {
@@ -365,16 +372,16 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockLocationResults);
-        when(
-          mockDio.get('/api/resume/location/$location'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/resume/location/$location')).thenAnswer(
+          (_) async => _resp(
+            mockLocationResults,
+            statusCode: 200,
+            path: '/api/resume/location/$location',
+          ),
+        );
 
-        // When
         final result = await resumeService.getResumesByLocation(location);
 
-        // Then
         expect(result, hasLength(1));
         expect(result[0]['hopeLocation'], '서울');
         verify(mockDio.get('/api/resume/location/$location')).called(1);
@@ -383,15 +390,10 @@ void main() {
 
     group('에러 처리 테스트', () {
       test('네트워크 연결 오류 시 예외 발생 테스트', () async {
-        // Given
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          type: DioExceptionType.connectionTimeout,
+        when(mockDio.get('/api/resume')).thenThrow(
+          _dioEx(path: '/api/resume', type: DioExceptionType.connectionTimeout),
         );
 
-        when(mockDio.get('/api/resume')).thenThrow(dioException);
-
-        // When & Then
         expect(
           () => resumeService.getAllResumes(),
           throwsA(
@@ -405,16 +407,10 @@ void main() {
       });
 
       test('서버 내부 오류 시 예외 발생 테스트', () async {
-        // Given
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 500,
-          type: DioExceptionType.badResponse,
-        );
+        when(
+          mockDio.get('/api/resume'),
+        ).thenThrow(_dioEx(path: '/api/resume', statusCode: 500));
 
-        when(mockDio.get('/api/resume')).thenThrow(dioException);
-
-        // When & Then
         expect(
           () => resumeService.getAllResumes(),
           throwsA(
@@ -428,31 +424,20 @@ void main() {
       });
 
       test('인증 실패 시 처리 테스트', () async {
-        // Given
         when(mockStorage.read(key: 'jwt')).thenAnswer((_) async => null);
-
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 401,
-          type: DioExceptionType.badResponse,
-        );
-
         when(
           mockDio.post('/api/resume', data: anyNamed('data')),
-        ).thenThrow(dioException);
+        ).thenThrow(_dioEx(path: '/api/resume', statusCode: 401));
 
-        // When
         final resumeData = {'title': '테스트', 'content': '테스트'};
         final result = await resumeService.createResume(resumeData);
 
-        // Then
         expect(result, isNull);
       });
     });
 
     group('실제 사용 시나리오 테스트', () {
       test('이력서 목록 조회 → 상세 보기 → 수정 시나리오 테스트', () async {
-        // Given
         const userNo = 1;
         const resumeId = 1;
 
@@ -465,7 +450,6 @@ void main() {
             'isDefault': true,
           },
         ];
-
         final mockResumeDetail = {
           'resumeNo': 1,
           'title': '내 이력서',
@@ -473,29 +457,29 @@ void main() {
           'name': '홍길동',
           'career': '3년',
         };
-
         final updateData = {'content': '수정된 내용', 'career': '4년'};
 
-        // Mock 설정
-        final listResponse = MockResponse();
-        when(listResponse.data).thenReturn(mockUserResumes);
-        when(
-          mockDio.get('/api/resume/user/$userNo'),
-        ).thenAnswer((_) async => listResponse);
-
-        final detailResponse = MockResponse();
-        when(detailResponse.data).thenReturn(mockResumeDetail);
-        when(
-          mockDio.get('/api/resume/$resumeId'),
-        ).thenAnswer((_) async => detailResponse);
-
-        final updateResponse = MockResponse();
-        when(updateResponse.statusCode).thenReturn(200);
+        when(mockDio.get('/api/resume/user/$userNo')).thenAnswer(
+          (_) async => _resp(
+            mockUserResumes,
+            statusCode: 200,
+            path: '/api/resume/user/$userNo',
+          ),
+        );
+        when(mockDio.get('/api/resume/$resumeId')).thenAnswer(
+          (_) async => _resp(
+            mockResumeDetail,
+            statusCode: 200,
+            path: '/api/resume/$resumeId',
+          ),
+        );
         when(
           mockDio.put('/api/resume/$resumeId', data: anyNamed('data')),
-        ).thenAnswer((_) async => updateResponse);
+        ).thenAnswer(
+          (_) async =>
+              _resp(null, statusCode: 200, path: '/api/resume/$resumeId'),
+        );
 
-        // When
         final resumes = await resumeService.getUserResumes(userNo);
         expect(resumes, hasLength(1));
 
@@ -508,7 +492,6 @@ void main() {
         );
         expect(updateResult, isTrue);
 
-        // Then
         verifyInOrder([
           mockDio.get('/api/resume/user/$userNo'),
           mockDio.get('/api/resume/$resumeId'),

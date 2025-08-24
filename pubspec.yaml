@@ -10,93 +10,72 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # 네트워킹 / 스토리지
   dio: ^5.8.0+1
+  http: ^0.13.6
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.1
+  connectivity_plus: ^5.0.1
+
+  # 에디터/파일
   flutter_quill: ^11.4.0
   flutter_quill_extensions: ^11.0.0
   file_picker: ^10.2.0
-  flutter_secure_storage: ^9.0.0
-  cupertino_icons: ^1.0.8
+  image_picker: ^1.1.2
+
+  # 아키텍처/라우팅
+  provider: ^6.1.2
   flutter_riverpod: ^2.6.1
   go_router: ^15.1.0
+
+  # 환경/런처
   flutter_dotenv: ^5.2.1
   url_launcher: ^6.3.1
-  image_picker: ^1.1.2
+
+  # Firebase
   firebase_core: ^3.13.0
   firebase_auth: ^5.5.3
   cloud_firestore: ^5.6.7
   firebase_storage: ^12.4.5
-  webview_flutter: ^4.11.0
-  http: ^0.13.6
-  google_sign_in: ^6.1.0
+
+  # UI/유틸
+  cupertino_icons: ^1.0.8
   intl: ^0.19.0
-  path_provider: ^2.1.1
+  cached_network_image: ^3.3.0
   permission_handler: ^11.1.0
-  cached_network_image: ^3.3.0 
-  provider: ^6.1.2
-  shared_preferences: ^2.2.2
+  logger: ^2.0.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   crypto: ^3.0.3
   encrypt: ^5.0.1
-  connectivity_plus: ^5.0.1
-  logger: ^2.0.2
+  webview_flutter: ^4.11.0
 
 dev_dependencies:
-  # 기본 테스트 프레임워크
+  # 기본 테스트
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  
+
   # 통합 테스트
   integration_test:
     sdk: flutter
-  
-  # Mock 및 테스트 유틸리티
+
+  # Mock / 코드생성
   mockito: ^5.4.4
   build_runner: ^2.4.9
-  
-  # HTTP 모킹
+
+  # 네트워크 모킹(Dio용)
   http_mock_adapter: ^0.6.1
-  nock: ^1.2.3
-  
-  # 테스트 데이터 생성
-  faker: ^2.1.0
-  
-  # 테스트 리포팅
-  test_cov: ^0.5.0
-  lcov: ^6.1.0
-  
-  # 위젯 테스트 헬퍼
-  patrol: ^3.6.1
-  golden_toolkit: ^0.15.0
-  
-  # 성능 테스트
-  flutter_driver:
-    sdk: flutter
-  
-  # 접근성 테스트
-  flutter_accessibility_service: ^0.2.0
-  
-  # 코드 품질
-  dart_code_metrics: ^5.7.6
-  very_good_analysis: ^6.0.0
-  
-  # Firebase 테스트
-  firebase_auth_mocks: ^0.13.0
-  cloud_firestore_mocks: ^0.17.0
-  firebase_storage_mocks: ^0.7.0
-  
-  # 네트워크 테스트
-  dio_test: ^0.1.0
   network_image_mock: ^2.1.1
-  
-  # 상태 관리 테스트
-  riverpod_test: ^2.0.0
-  provider_test: ^1.1.0
-  
-  # 플랫폼 특정 테스트
-  plugin_platform_interface: ^2.1.8
-  platform: ^3.1.4
+
+  # 테스트 데이터/골든
+  faker: ^2.1.0
+  golden_toolkit: ^0.15.0
+
+  # 코드 스타일/분석(선택)
+  very_good_analysis: ^6.0.0
 
 flutter:
   uses-material-design: true

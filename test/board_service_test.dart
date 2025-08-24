@@ -1,32 +1,59 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:peoplejob_frontend/services/board_service.dart';
 
-// Mock 클래스들
-class MockDio extends Mock implements Dio {}
+/// ---------------------------------------------------------------------------
+/// 로컬 Mock (build_runner 불필요)
+/// ---------------------------------------------------------------------------
+class _MockDio extends Mock implements Dio {}
 
-class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+class _MockStorage extends Mock implements FlutterSecureStorage {}
 
-class MockResponse extends Mock implements Response {}
+/// ---------------------------------------------------------------------------
+/// 실사용 Response/DioException 생성 헬퍼
+/// ---------------------------------------------------------------------------
+Response<dynamic> _resp(dynamic data, {int? statusCode, required String path}) {
+  return Response<dynamic>(
+    requestOptions: RequestOptions(path: path),
+    data: data,
+    statusCode: statusCode,
+  );
+}
 
-class MockRequestOptions extends Mock implements RequestOptions {}
+DioException _dioEx({
+  required String path,
+  int? statusCode,
+  DioExceptionType type = DioExceptionType.badResponse,
+}) {
+  return DioException(
+    requestOptions: RequestOptions(path: path),
+    response:
+        statusCode == null
+            ? null
+            : Response<dynamic>(
+              requestOptions: RequestOptions(path: path),
+              statusCode: statusCode,
+            ),
+    type: type,
+  );
+}
 
-@GenerateMocks([Dio, FlutterSecureStorage])
 void main() {
   group('BoardService Tests', () {
     late BoardService boardService;
-    late MockDio mockDio;
-    late MockFlutterSecureStorage mockStorage;
+    late _MockDio mockDio;
+    late _MockStorage mockStorage;
 
     setUp(() {
-      mockDio = MockDio();
-      mockStorage = MockFlutterSecureStorage();
+      mockDio = _MockDio();
+      mockStorage = _MockStorage();
 
-      // BoardService를 테스트용으로 초기화
+      // 테스트 훅으로 모의 의존성 주입 (무인자 생성자 유지)
+      // BoardService.setTestOverrides는 서비스에 테스트 전용 정적 메서드로 추가되어 있어야 합니다.
+      BoardService.setTestOverrides(dio: mockDio, storage: mockStorage);
       boardService = BoardService();
 
       // 기본 토큰 설정
@@ -74,9 +101,9 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockBoards);
-        when(mockDio.get('/api/board')).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/board')).thenAnswer(
+          (_) async => _resp(mockBoards, statusCode: 200, path: '/api/board'),
+        );
 
         // When
         final result = await boardService.getAllBoards();
@@ -95,7 +122,6 @@ void main() {
       });
 
       test('카테고리별 게시글 조회 성공 테스트', () async {
-        // Given
         const category = '공지사항';
         final mockNoticeBoards = [
           {
@@ -118,16 +144,16 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockNoticeBoards);
-        when(
-          mockDio.get('/api/board/category/$category'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/board/category/$category')).thenAnswer(
+          (_) async => _resp(
+            mockNoticeBoards,
+            statusCode: 200,
+            path: '/api/board/category/$category',
+          ),
+        );
 
-        // When
         final result = await boardService.getBoardsByCategory(category);
 
-        // Then
         expect(result, hasLength(2));
         expect(result.every((board) => board['category'] == '공지사항'), true);
         expect(result.every((board) => board['isNotice'] == true), true);
@@ -136,7 +162,6 @@ void main() {
       });
 
       test('게시글 상세 조회 성공 테스트', () async {
-        // Given
         const boardNo = 1;
         final mockBoardDetail = {
           'boardNo': 1,
@@ -165,16 +190,16 @@ void main() {
           ],
         };
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockBoardDetail);
-        when(
-          mockDio.get('/api/board/$boardNo'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/board/$boardNo')).thenAnswer(
+          (_) async => _resp(
+            mockBoardDetail,
+            statusCode: 200,
+            path: '/api/board/$boardNo',
+          ),
+        );
 
-        // When
         final result = await boardService.getBoardDetail(boardNo);
 
-        // Then
         expect(result['boardNo'], 1);
         expect(result['title'], '서비스 점검 안내');
         expect(result['content'], contains('점검 일시'));
@@ -186,18 +211,12 @@ void main() {
       });
 
       test('존재하지 않는 게시글 조회 시 예외 발생 테스트', () async {
-        // Given
         const boardNo = 999;
 
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 404,
-          type: DioExceptionType.badResponse,
-        );
+        when(
+          mockDio.get('/api/board/$boardNo'),
+        ).thenThrow(_dioEx(path: '/api/board/$boardNo', statusCode: 404));
 
-        when(mockDio.get('/api/board/$boardNo')).thenThrow(dioException);
-
-        // When & Then
         expect(
           () => boardService.getBoardDetail(boardNo),
           throwsA(
@@ -213,7 +232,6 @@ void main() {
 
     group('게시글 등록/수정/삭제 테스트', () {
       test('게시글 등록 성공 테스트', () async {
-        // Given
         final boardData = {
           'category': '자유게시판',
           'title': '새로운 게시글 제목',
@@ -223,22 +241,16 @@ void main() {
           'isNotice': false,
         };
 
-        final mockResponse = MockResponse();
-        when(mockResponse.statusCode).thenReturn(201);
-        when(mockResponse.data).thenReturn({
-          'boardNo': 5,
-          'success': true,
-          'message': '게시글이 성공적으로 등록되었습니다.',
-        });
+        when(mockDio.post('/api/board', data: anyNamed('data'))).thenAnswer(
+          (_) async => _resp(
+            {'boardNo': 5, 'success': true, 'message': '게시글이 성공적으로 등록되었습니다.'},
+            statusCode: 201,
+            path: '/api/board',
+          ),
+        );
 
-        when(
-          mockDio.post('/api/board', data: anyNamed('data')),
-        ).thenAnswer((_) async => mockResponse);
-
-        // When
         final result = await boardService.createBoard(boardData);
 
-        // Then
         expect(result, isTrue);
 
         verify(
@@ -259,7 +271,6 @@ void main() {
       });
 
       test('필수 필드 누락으로 게시글 등록 실패 테스트', () async {
-        // Given
         final invalidBoardData = {
           'category': '자유게시판',
           // title 누락
@@ -267,17 +278,10 @@ void main() {
           'writer': '홍길동',
         };
 
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 400,
-          type: DioExceptionType.badResponse,
-        );
-
         when(
           mockDio.post('/api/board', data: anyNamed('data')),
-        ).thenThrow(dioException);
+        ).thenThrow(_dioEx(path: '/api/board', statusCode: 400));
 
-        // When & Then
         expect(
           () => boardService.createBoard(invalidBoardData),
           throwsA(
@@ -289,7 +293,6 @@ void main() {
       });
 
       test('게시글 수정 성공 테스트', () async {
-        // Given
         const boardNo = 1;
         final updateData = {
           'title': '수정된 게시글 제목',
@@ -297,20 +300,18 @@ void main() {
           'category': 'QnA',
         };
 
-        final mockResponse = MockResponse();
-        when(mockResponse.statusCode).thenReturn(200);
-        when(
-          mockResponse.data,
-        ).thenReturn({'success': true, 'message': '게시글이 성공적으로 수정되었습니다.'});
-
         when(
           mockDio.put('/api/board/$boardNo', data: anyNamed('data')),
-        ).thenAnswer((_) async => mockResponse);
+        ).thenAnswer(
+          (_) async => _resp(
+            {'success': true},
+            statusCode: 200,
+            path: '/api/board/$boardNo',
+          ),
+        );
 
-        // When
         final result = await boardService.updateBoard(boardNo, updateData);
 
-        // Then
         expect(result, isTrue);
 
         verify(
@@ -329,21 +330,13 @@ void main() {
       });
 
       test('권한 없는 사용자의 게시글 수정 실패 테스트', () async {
-        // Given
         const boardNo = 1;
         final updateData = {'title': '수정하려는 제목', 'content': '수정하려는 내용'};
 
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 403,
-          type: DioExceptionType.badResponse,
-        );
-
         when(
           mockDio.put('/api/board/$boardNo', data: anyNamed('data')),
-        ).thenThrow(dioException);
+        ).thenThrow(_dioEx(path: '/api/board/$boardNo', statusCode: 403));
 
-        // When & Then
         expect(
           () => boardService.updateBoard(boardNo, updateData),
           throwsA(
@@ -355,40 +348,29 @@ void main() {
       });
 
       test('게시글 삭제 성공 테스트', () async {
-        // Given
         const boardNo = 1;
 
-        final mockResponse = MockResponse();
-        when(mockResponse.statusCode).thenReturn(200);
-        when(
-          mockResponse.data,
-        ).thenReturn({'success': true, 'message': '게시글이 성공적으로 삭제되었습니다.'});
+        when(mockDio.delete('/api/board/$boardNo')).thenAnswer(
+          (_) async => _resp(
+            {'success': true},
+            statusCode: 200,
+            path: '/api/board/$boardNo',
+          ),
+        );
 
-        when(
-          mockDio.delete('/api/board/$boardNo'),
-        ).thenAnswer((_) async => mockResponse);
-
-        // When
         final result = await boardService.deleteBoard(boardNo);
 
-        // Then
         expect(result, isTrue);
         verify(mockDio.delete('/api/board/$boardNo')).called(1);
       });
 
       test('존재하지 않는 게시글 삭제 실패 테스트', () async {
-        // Given
         const boardNo = 999;
 
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 404,
-          type: DioExceptionType.badResponse,
-        );
+        when(
+          mockDio.delete('/api/board/$boardNo'),
+        ).thenThrow(_dioEx(path: '/api/board/$boardNo', statusCode: 404));
 
-        when(mockDio.delete('/api/board/$boardNo')).thenThrow(dioException);
-
-        // When & Then
         expect(
           () => boardService.deleteBoard(boardNo),
           throwsA(
@@ -402,7 +384,6 @@ void main() {
 
     group('게시글 검색 테스트', () {
       test('제목으로 게시글 검색 성공 테스트', () async {
-        // Given
         const keyword = '점검';
         final mockSearchResults = [
           {
@@ -425,16 +406,16 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockSearchResults);
-        when(
-          mockDio.get('/api/board/search?keyword=$keyword'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+          (_) async => _resp(
+            mockSearchResults,
+            statusCode: 200,
+            path: '/api/board/search?keyword=$keyword',
+          ),
+        );
 
-        // When
         final result = await boardService.searchBoards(keyword);
 
-        // Then
         expect(result, hasLength(2));
         expect(result[0]['title'], contains('점검'));
         expect(result[1]['title'], contains('점검'));
@@ -442,7 +423,6 @@ void main() {
       });
 
       test('내용으로 게시글 검색 성공 테스트', () async {
-        // Given
         const keyword = '면접';
         final mockSearchResults = [
           {
@@ -465,16 +445,16 @@ void main() {
           },
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockSearchResults);
-        when(
-          mockDio.get('/api/board/search?keyword=$keyword'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+          (_) async => _resp(
+            mockSearchResults,
+            statusCode: 200,
+            path: '/api/board/search?keyword=$keyword',
+          ),
+        );
 
-        // When
         final result = await boardService.searchBoards(keyword);
 
-        // Then
         expect(result, hasLength(2));
         expect(result[0]['content'], contains('면접'));
         expect(result[1]['title'], contains('면접'));
@@ -482,107 +462,87 @@ void main() {
       });
 
       test('검색 결과가 없을 때 빈 배열 반환 테스트', () async {
-        // Given
         const keyword = '존재하지않는키워드';
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn([]);
-        when(
-          mockDio.get('/api/board/search?keyword=$keyword'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+          (_) async => _resp(
+            [],
+            statusCode: 200,
+            path: '/api/board/search?keyword=$keyword',
+          ),
+        );
 
-        // When
         final result = await boardService.searchBoards(keyword);
 
-        // Then
         expect(result, isEmpty);
         verify(mockDio.get('/api/board/search?keyword=$keyword')).called(1);
       });
 
       test('빈 키워드로 검색 시 모든 게시글 반환 테스트', () async {
-        // Given
         const keyword = '';
         final mockAllBoards = [
           {'boardNo': 1, 'title': '첫 번째 게시글', 'category': '공지사항'},
           {'boardNo': 2, 'title': '두 번째 게시글', 'category': '자유게시판'},
         ];
 
-        final mockResponse = MockResponse();
-        when(mockResponse.data).thenReturn(mockAllBoards);
-        when(
-          mockDio.get('/api/board/search?keyword=$keyword'),
-        ).thenAnswer((_) async => mockResponse);
+        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+          (_) async => _resp(
+            mockAllBoards,
+            statusCode: 200,
+            path: '/api/board/search?keyword=$keyword',
+          ),
+        );
 
-        // When
         final result = await boardService.searchBoards(keyword);
 
-        // Then
         expect(result, hasLength(2));
       });
     });
 
     group('조회수 관리 테스트', () {
       test('조회수 증가 성공 테스트', () async {
-        // Given
         const boardNo = 1;
 
-        final mockResponse = MockResponse();
-        when(mockResponse.statusCode).thenReturn(200);
-        when(
-          mockResponse.data,
-        ).thenReturn({'success': true, 'newViewCount': 151});
+        when(mockDio.patch('/api/board/$boardNo/view')).thenAnswer(
+          (_) async => _resp(
+            {'success': true, 'newViewCount': 151},
+            statusCode: 200,
+            path: '/api/board/$boardNo/view',
+          ),
+        );
 
-        when(
-          mockDio.patch('/api/board/$boardNo/view'),
-        ).thenAnswer((_) async => mockResponse);
-
-        // When
         await boardService.increaseViewCount(boardNo);
 
-        // Then
         verify(mockDio.patch('/api/board/$boardNo/view')).called(1);
       });
 
       test('존재하지 않는 게시글의 조회수 증가 시 무시 테스트', () async {
-        // Given
         const boardNo = 999;
 
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 404,
-          type: DioExceptionType.badResponse,
-        );
+        when(
+          mockDio.patch('/api/board/$boardNo/view'),
+        ).thenThrow(_dioEx(path: '/api/board/$boardNo/view', statusCode: 404));
 
-        when(mockDio.patch('/api/board/$boardNo/view')).thenThrow(dioException);
-
-        // When & Then (예외가 발생하지 않아야 함)
         expect(() => boardService.increaseViewCount(boardNo), returnsNormally);
       });
 
       test('네트워크 오류 시 조회수 증가 무시 테스트', () async {
-        // Given
         const boardNo = 1;
 
         when(
           mockDio.patch('/api/board/$boardNo/view'),
         ).thenThrow(Exception('Network error'));
 
-        // When & Then (예외가 발생하지 않아야 함)
         expect(() => boardService.increaseViewCount(boardNo), returnsNormally);
       });
     });
 
     group('에러 처리 테스트', () {
       test('네트워크 연결 오류 시 예외 발생 테스트', () async {
-        // Given
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          type: DioExceptionType.connectionTimeout,
+        when(mockDio.get('/api/board')).thenThrow(
+          _dioEx(path: '/api/board', type: DioExceptionType.connectionTimeout),
         );
 
-        when(mockDio.get('/api/board')).thenThrow(dioException);
-
-        // When & Then
         expect(
           () => boardService.getAllBoards(),
           throwsA(
@@ -596,16 +556,10 @@ void main() {
       });
 
       test('서버 내부 오류 시 예외 발생 테스트', () async {
-        // Given
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 500,
-          type: DioExceptionType.badResponse,
-        );
+        when(
+          mockDio.get('/api/board'),
+        ).thenThrow(_dioEx(path: '/api/board', statusCode: 500));
 
-        when(mockDio.get('/api/board')).thenThrow(dioException);
-
-        // When & Then
         expect(
           () => boardService.getAllBoards(),
           throwsA(
@@ -619,20 +573,11 @@ void main() {
       });
 
       test('인증 실패 시 예외 발생 테스트', () async {
-        // Given
         when(mockStorage.read(key: 'jwt')).thenAnswer((_) async => null);
-
-        final dioException = DioException(
-          requestOptions: MockRequestOptions(),
-          response: MockResponse()..statusCode = 401,
-          type: DioExceptionType.badResponse,
-        );
-
         when(
           mockDio.post('/api/board', data: anyNamed('data')),
-        ).thenThrow(dioException);
+        ).thenThrow(_dioEx(path: '/api/board', statusCode: 401));
 
-        // When & Then
         expect(
           () => boardService.createBoard({'title': '제목', 'content': '내용'}),
           throwsA(
@@ -646,11 +591,9 @@ void main() {
 
     group('실제 사용 시나리오 테스트', () {
       test('게시글 목록 조회 → 상세 보기 → 조회수 증가 시나리오 테스트', () async {
-        // Given
         final mockBoards = [
           {'boardNo': 1, 'title': '공지사항', 'category': '공지사항', 'viewCount': 100},
         ];
-
         final mockBoardDetail = {
           'boardNo': 1,
           'title': '공지사항',
@@ -658,38 +601,29 @@ void main() {
           'viewCount': 100,
         };
 
-        // 1. 목록 조회
-        final listResponse = MockResponse();
-        when(listResponse.data).thenReturn(mockBoards);
-        when(mockDio.get('/api/board')).thenAnswer((_) async => listResponse);
+        when(mockDio.get('/api/board')).thenAnswer(
+          (_) async => _resp(mockBoards, statusCode: 200, path: '/api/board'),
+        );
+        when(mockDio.get('/api/board/1')).thenAnswer(
+          (_) async =>
+              _resp(mockBoardDetail, statusCode: 200, path: '/api/board/1'),
+        );
+        when(mockDio.patch('/api/board/1/view')).thenAnswer(
+          (_) async => _resp(
+            {'success': true},
+            statusCode: 200,
+            path: '/api/board/1/view',
+          ),
+        );
 
-        // 2. 상세 조회
-        final detailResponse = MockResponse();
-        when(detailResponse.data).thenReturn(mockBoardDetail);
-        when(
-          mockDio.get('/api/board/1'),
-        ).thenAnswer((_) async => detailResponse);
-
-        // 3. 조회수 증가
-        final viewResponse = MockResponse();
-        when(viewResponse.statusCode).thenReturn(200);
-        when(
-          mockDio.patch('/api/board/1/view'),
-        ).thenAnswer((_) async => viewResponse);
-
-        // When
-        // 1. 목록 조회
         final boards = await boardService.getAllBoards();
         expect(boards, hasLength(1));
 
-        // 2. 상세 조회
         final detail = await boardService.getBoardDetail(1);
         expect(detail['boardNo'], 1);
 
-        // 3. 조회수 증가
         await boardService.increaseViewCount(1);
 
-        // Then
         verifyInOrder([
           mockDio.get('/api/board'),
           mockDio.get('/api/board/1'),
@@ -698,51 +632,33 @@ void main() {
       });
 
       test('게시글 작성 → 수정 → 삭제 전체 플로우 테스트', () async {
-        // Given
         final newBoardData = {
           'category': '자유게시판',
           'title': '새 게시글',
           'content': '새 게시글 내용',
           'writer': '테스트사용자',
         };
-
         final updateData = {'title': '수정된 게시글', 'content': '수정된 내용'};
 
-        // 1. 게시글 작성
-        final createResponse = MockResponse();
-        when(createResponse.statusCode).thenReturn(201);
-        when(
-          mockDio.post('/api/board', data: anyNamed('data')),
-        ).thenAnswer((_) async => createResponse);
+        when(mockDio.post('/api/board', data: anyNamed('data'))).thenAnswer(
+          (_) async => _resp(null, statusCode: 201, path: '/api/board'),
+        );
+        when(mockDio.put('/api/board/1', data: anyNamed('data'))).thenAnswer(
+          (_) async => _resp(null, statusCode: 200, path: '/api/board/1'),
+        );
+        when(mockDio.delete('/api/board/1')).thenAnswer(
+          (_) async => _resp(null, statusCode: 200, path: '/api/board/1'),
+        );
 
-        // 2. 게시글 수정
-        final updateResponse = MockResponse();
-        when(updateResponse.statusCode).thenReturn(200);
-        when(
-          mockDio.put('/api/board/1', data: anyNamed('data')),
-        ).thenAnswer((_) async => updateResponse);
-
-        // 3. 게시글 삭제
-        final deleteResponse = MockResponse();
-        when(deleteResponse.statusCode).thenReturn(200);
-        when(
-          mockDio.delete('/api/board/1'),
-        ).thenAnswer((_) async => deleteResponse);
-
-        // When
-        // 1. 게시글 작성
         final createResult = await boardService.createBoard(newBoardData);
         expect(createResult, isTrue);
 
-        // 2. 게시글 수정
         final updateResult = await boardService.updateBoard(1, updateData);
         expect(updateResult, isTrue);
 
-        // 3. 게시글 삭제
         final deleteResult = await boardService.deleteBoard(1);
         expect(deleteResult, isTrue);
 
-        // Then
         verifyInOrder([
           mockDio.post('/api/board', data: anyNamed('data')),
           mockDio.put('/api/board/1', data: anyNamed('data')),
@@ -751,7 +667,6 @@ void main() {
       });
 
       test('카테고리별 조회 → 검색 → 결과 확인 시나리오 테스트', () async {
-        // Given
         const category = '자유게시판';
         const keyword = '취업';
 
@@ -763,7 +678,6 @@ void main() {
             'content': '취업 후기 내용',
           },
         ];
-
         final searchResults = [
           {
             'boardNo': 2,
@@ -779,27 +693,25 @@ void main() {
           },
         ];
 
-        // 1. 카테고리별 조회
-        final categoryResponse = MockResponse();
-        when(categoryResponse.data).thenReturn(categoryBoards);
-        when(
-          mockDio.get('/api/board/category/$category'),
-        ).thenAnswer((_) async => categoryResponse);
+        when(mockDio.get('/api/board/category/$category')).thenAnswer(
+          (_) async => _resp(
+            categoryBoards,
+            statusCode: 200,
+            path: '/api/board/category/$category',
+          ),
+        );
+        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+          (_) async => _resp(
+            searchResults,
+            statusCode: 200,
+            path: '/api/board/search?keyword=$keyword',
+          ),
+        );
 
-        // 2. 검색
-        final searchResponse = MockResponse();
-        when(searchResponse.data).thenReturn(searchResults);
-        when(
-          mockDio.get('/api/board/search?keyword=$keyword'),
-        ).thenAnswer((_) async => searchResponse);
-
-        // When
-        // 1. 카테고리별 조회
         final categoryResult = await boardService.getBoardsByCategory(category);
         expect(categoryResult, hasLength(1));
         expect(categoryResult[0]['category'], '자유게시판');
 
-        // 2. 검색
         final searchResult = await boardService.searchBoards(keyword);
         expect(searchResult, hasLength(2));
         expect(
@@ -811,7 +723,6 @@ void main() {
           isTrue,
         );
 
-        // Then
         verifyInOrder([
           mockDio.get('/api/board/category/$category'),
           mockDio.get('/api/board/search?keyword=$keyword'),

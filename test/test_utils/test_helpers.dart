@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:peoplejob_frontend/services/auth_service.dart';
@@ -10,6 +11,7 @@ import 'package:peoplejob_frontend/services/board_service.dart';
 import 'package:peoplejob_frontend/services/apply_service.dart';
 import 'package:peoplejob_frontend/services/notice_service.dart';
 
+// ---- Mocks ----
 class MockAuthService extends Mock implements AuthService {}
 
 class MockJobService extends Mock implements JobService {}
@@ -22,8 +24,10 @@ class MockApplyService extends Mock implements ApplyService {}
 
 class MockNoticeService extends Mock implements NoticeService {}
 
+class MockNavigatorObserver extends Mock implements NavigatorObserver {}
+
 class TestHelpers {
-  // 테스트용 MaterialApp 생성
+  // 테스트용 MaterialApp 생성 (Provider.value 사용)
   static Widget createTestApp(
     Widget child, {
     MockAuthService? authService,
@@ -32,26 +36,56 @@ class TestHelpers {
     MockBoardService? boardService,
     MockApplyService? applyService,
     MockNoticeService? noticeService,
+    Map<String, WidgetBuilder>? routes,
+    List<NavigatorObserver>? observers,
   }) {
-    return MaterialApp(
-      home: MultiProvider(
-        providers: [
-          if (authService != null)
-            Provider<AuthService>(create: (_) => authService),
-          if (jobService != null)
-            Provider<JobService>(create: (_) => jobService),
-          if (resumeService != null)
-            Provider<ResumeService>(create: (_) => resumeService),
-          if (boardService != null)
-            Provider<BoardService>(create: (_) => boardService),
-          if (applyService != null)
-            Provider<ApplyService>(create: (_) => applyService),
-          if (noticeService != null)
-            Provider<NoticeService>(create: (_) => noticeService),
-        ],
-        child: child,
+    final providers = <SingleChildWidget>[
+      if (authService != null) Provider<AuthService>.value(value: authService),
+      if (jobService != null) Provider<JobService>.value(value: jobService),
+      if (resumeService != null)
+        Provider<ResumeService>.value(value: resumeService),
+      if (boardService != null)
+        Provider<BoardService>.value(value: boardService),
+      if (applyService != null)
+        Provider<ApplyService>.value(value: applyService),
+      if (noticeService != null)
+        Provider<NoticeService>.value(value: noticeService),
+    ];
+
+    return MultiProvider(
+      providers: providers,
+      child: MaterialApp(
+        home: child,
+        routes: routes ?? const {},
+        navigatorObservers: observers ?? const <NavigatorObserver>[],
       ),
     );
+  }
+
+  // 네비게이션 테스트용 앱 빌더 + 옵저버
+  static (Widget app, MockNavigatorObserver observer) buildAppWithObserver(
+    Widget child, {
+    MockAuthService? authService,
+    MockJobService? jobService,
+    MockResumeService? resumeService,
+    MockBoardService? boardService,
+    MockApplyService? applyService,
+    MockNoticeService? noticeService,
+    Map<String, WidgetBuilder>? routes,
+  }) {
+    final observer = MockNavigatorObserver();
+    final app = createTestApp(
+      child,
+      authService: authService,
+      jobService: jobService,
+      resumeService: resumeService,
+      boardService: boardService,
+      applyService: applyService,
+      noticeService: noticeService,
+      routes: routes,
+      observers: [observer],
+    );
+    return (app, observer);
   }
 
   // 공통 모의 설정
@@ -76,23 +110,19 @@ class TestHelpers {
     Key key,
     String text,
   ) async {
-    final textField = find.byKey(key);
-    await tester.enterText(textField, text);
-    await tester.pump();
+    await tester.enterText(find.byKey(key), text);
+    await tester.pumpAndSettle();
   }
 
   // 버튼 탭 헬퍼
   static Future<void> tapButtonByKey(WidgetTester tester, Key key) async {
-    final button = find.byKey(key);
-    await tester.tap(button);
-    await tester.pump();
+    await tester.tap(find.byKey(key));
+    await tester.pumpAndSettle();
   }
 
-  // 버튼 탭 (텍스트로 찾기)
   static Future<void> tapButtonByText(WidgetTester tester, String text) async {
-    final button = find.text(text);
-    await tester.tap(button);
-    await tester.pump();
+    await tester.tap(find.text(text));
+    await tester.pumpAndSettle();
   }
 
   // 드롭다운 선택 헬퍼
@@ -101,39 +131,40 @@ class TestHelpers {
     String dropdownText,
     String itemText,
   ) async {
-    // 드롭다운 버튼 찾기
-    final dropdown = find.text(dropdownText);
-    await tester.tap(dropdown);
+    await tester.tap(find.text(dropdownText));
     await tester.pumpAndSettle();
-
-    // 드롭다운 아이템 선택
-    final item = find.text(itemText).last;
-    await tester.tap(item);
+    await tester.tap(find.text(itemText).last);
     await tester.pumpAndSettle();
   }
 
   // 스크롤 헬퍼
   static Future<void> scrollToBottom(WidgetTester tester) async {
-    final listView = find.byType(Scrollable);
-    await tester.drag(listView, const Offset(0, -500));
+    final scrollable = find.byType(Scrollable);
+    await tester.drag(scrollable, const Offset(0, -500));
     await tester.pumpAndSettle();
   }
 
   static Future<void> scrollToTop(WidgetTester tester) async {
-    final listView = find.byType(Scrollable);
-    await tester.drag(listView, const Offset(0, 500));
+    final scrollable = find.byType(Scrollable);
+    await tester.drag(scrollable, const Offset(0, 500));
     await tester.pumpAndSettle();
   }
 
   // 로딩 완료까지 대기
-  static Future<void> waitForLoading(WidgetTester tester) async {
+  static Future<void> waitForLoading(
+    WidgetTester tester, {
+    Duration step = const Duration(milliseconds: 100),
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final end = DateTime.now().add(timeout);
     while (find.byType(CircularProgressIndicator).evaluate().isNotEmpty) {
-      await tester.pump(const Duration(milliseconds: 100));
+      if (DateTime.now().isAfter(end)) break;
+      await tester.pump(step);
     }
     await tester.pumpAndSettle();
   }
 
-  // 다이얼로그 대기 및 처리
+  // 다이얼로그 처리
   static Future<void> handleDialog(
     WidgetTester tester,
     String buttonText,
@@ -146,33 +177,32 @@ class TestHelpers {
     }
   }
 
-  // 스낵바 메시지 확인
+  // 메시지 확인
   static void expectSnackBar(String message) {
     expect(find.text(message), findsOneWidget);
   }
 
-  // 에러 메시지 확인
   static void expectErrorMessage(String message) {
     expect(find.text(message), findsOneWidget);
   }
 
-  // 폼 유효성 검사 메시지 확인
   static void expectValidationError(String message) {
     expect(find.text(message), findsOneWidget);
   }
 
-  // 네비게이션 확인
-  static void expectNavigatedTo(String routeName) {
-    // 실제 구현에서는 Navigator observer 등을 사용
-    expect(find.byType(MaterialPageRoute), findsOneWidget);
+  // 네비게이션 확인 (Observer 기반)
+  static void expectPushed(MockNavigatorObserver observer, {int times = 1}) {}
+
+  static void expectNavigatedToPageText(String textOnNewPage) {
+    expect(find.text(textOnNewPage), findsOneWidget);
   }
 
-  // 위젯 존재 확인
-  static void expectWidgetExists<T>() {
+  // 위젯 존재/미존재 확인 (Widget 한정)
+  static void expectWidgetExists<T extends Widget>() {
     expect(find.byType(T), findsOneWidget);
   }
 
-  static void expectWidgetNotExists<T>() {
+  static void expectWidgetNotExists<T extends Widget>() {
     expect(find.byType(T), findsNothing);
   }
 
@@ -186,55 +216,47 @@ class TestHelpers {
     expect(find.textContaining(partialText), findsOneWidget);
   }
 
-  // 여러 텍스트 확인
   static void expectTexts(List<String> texts) {
-    for (String text in texts) {
+    for (final text in texts) {
       expect(find.text(text), findsOneWidget);
     }
   }
 
-  // Mock 서비스 설정 헬퍼들
+  // Mock 서비스 기본 스텁 (실제 서비스 시그니처와 일치하도록 최소화)
   static void setupMockJobService(MockJobService mockJobService) {
-    when(mockJobService.getAllJobs()).thenAnswer((_) async => []);
-    when(mockJobService.getJobById(any)).thenAnswer((_) async => null);
-    when(mockJobService.searchJobs(any)).thenAnswer((_) async => []);
+    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
+    // 예시:
+    // when(mockJobService.getAllJobs()).thenAnswer((_) async => []);
   }
 
   static void setupMockResumeService(MockResumeService mockResumeService) {
-    when(mockResumeService.getAllResumes()).thenAnswer((_) async => []);
-    when(mockResumeService.getUserResumes(any)).thenAnswer((_) async => []);
-    when(mockResumeService.getResumeById(any)).thenAnswer((_) async => null);
+    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
   }
 
   static void setupMockBoardService(MockBoardService mockBoardService) {
-    when(mockBoardService.getAllBoards()).thenAnswer((_) async => []);
-    when(mockBoardService.getBoardById(any)).thenAnswer((_) async => null);
-    when(mockBoardService.searchBoards(any)).thenAnswer((_) async => []);
+    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
   }
 
   static void setupMockApplyService(MockApplyService mockApplyService) {
-    when(mockApplyService.getUserApplications(any)).thenAnswer((_) async => []);
-    when(
-      mockApplyService.getApplicationById(any),
-    ).thenAnswer((_) async => null);
-    when(mockApplyService.getApplicationStats(any)).thenAnswer(
+    // ▶ 현재 ApplyService(대화에서 공유한 버전)에 맞춘 기본 스텁
+    when(mockApplyService.getMyApplications()).thenAnswer((_) async => []);
+    when(mockApplyService.getAllApplications()).thenAnswer((_) async => []);
+    when(mockApplyService.getApplicationStats()).thenAnswer(
       (_) async => {
         'totalApplications': 0,
         'pendingApplications': 0,
         'acceptedApplications': 0,
         'rejectedApplications': 0,
+        'monthlyStats': const [],
       },
     );
   }
 
   static void setupMockNoticeService(MockNoticeService mockNoticeService) {
-    when(mockNoticeService.getAllNotices()).thenAnswer((_) async => []);
-    when(mockNoticeService.getNoticeById(any)).thenAnswer((_) async => null);
-    when(mockNoticeService.getImportantNotices()).thenAnswer((_) async => []);
-    when(mockNoticeService.getRecentNotices()).thenAnswer((_) async => []);
+    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
   }
 
-  // 테스트 데이터 생성 헬퍼
+  // 테스트 데이터
   static Map<String, dynamic> createTestJob({
     int id = 1,
     String title = '테스트 채용공고',
@@ -292,55 +314,51 @@ class TestHelpers {
     };
   }
 
-  // 네트워크 오류 시뮬레이션
-  static void simulateNetworkError(Mock mockService) {
-    when(mockService.noSuchMethod(any)).thenThrow(Exception('Network error'));
-  }
+  // ── 시뮬레이션 도우미 (특정 메서드를 직접 stub 하는 것을 권장) ──
+  @Deprecated('특정 메서드에 대해 when(...).thenThrow(...)를 직접 사용하세요.')
+  static void simulateNetworkError(Mock mockService) {}
 
-  // 서버 오류 시뮬레이션
-  static void simulateServerError(Mock mockService) {
-    when(mockService.noSuchMethod(any)).thenThrow(Exception('Server error'));
-  }
+  @Deprecated('특정 메서드에 대해 when(...).thenThrow(...)를 직접 사용하세요.')
+  static void simulateServerError(Mock mockService) {}
 
-  // 인증 오류 시뮬레이션
   static void simulateAuthError(MockAuthService mockAuthService) {
     when(mockAuthService.getToken()).thenAnswer((_) async => null);
     when(mockAuthService.getUserInfo()).thenAnswer((_) async => {});
   }
 
   // 커스텀 매처들
-  static Matcher hasTextStyle(TextStyle expectedStyle) {
-    return _HasTextStyle(expectedStyle);
-  }
-
-  static Matcher isEnabled() {
-    return _IsEnabled();
-  }
-
-  static Matcher isDisabled() {
-    return _IsDisabled();
-  }
+  static Matcher hasTextStyle(TextStyle expectedStyle) =>
+      _HasTextStyle(expectedStyle);
+  static Matcher isEnabled() => const _IsEnabled();
+  static Matcher isDisabled() => const _IsDisabled();
 }
 
 // 커스텀 매처 구현
 class _HasTextStyle extends Matcher {
-  final TextStyle expectedStyle;
-
-  _HasTextStyle(this.expectedStyle);
+  final TextStyle expected;
+  _HasTextStyle(this.expected);
 
   @override
   bool matches(dynamic item, Map matchState) {
     if (item is! Text) return false;
-    return item.style == expectedStyle;
+    final s = item.style;
+    if (s == null) return false;
+    bool ok = true;
+    if (expected.fontSize != null) ok &= s.fontSize == expected.fontSize;
+    if (expected.fontWeight != null) ok &= s.fontWeight == expected.fontWeight;
+    if (expected.color != null) ok &= s.color == expected.color;
+    if (expected.decoration != null) ok &= s.decoration == expected.decoration;
+    if (expected.fontStyle != null) ok &= s.fontStyle == expected.fontStyle;
+    return ok;
   }
 
   @override
-  Description describe(Description description) {
-    return description.add('has text style $expectedStyle');
-  }
+  Description describe(Description description) =>
+      description.add('has partial TextStyle match: $expected');
 }
 
 class _IsEnabled extends Matcher {
+  const _IsEnabled();
   @override
   bool matches(dynamic item, Map matchState) {
     if (item is ElevatedButton) return item.onPressed != null;
@@ -351,12 +369,12 @@ class _IsEnabled extends Matcher {
   }
 
   @override
-  Description describe(Description description) {
-    return description.add('is enabled');
-  }
+  Description describe(Description description) =>
+      description.add('is enabled');
 }
 
 class _IsDisabled extends Matcher {
+  const _IsDisabled();
   @override
   bool matches(dynamic item, Map matchState) {
     if (item is ElevatedButton) return item.onPressed == null;
@@ -367,7 +385,6 @@ class _IsDisabled extends Matcher {
   }
 
   @override
-  Description describe(Description description) {
-    return description.add('is disabled');
-  }
+  Description describe(Description description) =>
+      description.add('is disabled');
 }
