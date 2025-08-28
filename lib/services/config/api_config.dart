@@ -2,7 +2,10 @@
 /// 백엔드 Redis 캐시 시스템과 연동하는 설정들
 class ApiConfig {
   // 기본 API URL
-  static const String baseUrl = 'http://localhost:9000';
+  static String get baseUrl => const String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://localhost:9000',
+  );
   static const String productionUrl = 'https://api.peoplejob.com';
 
   // 개발/운영 환경 구분

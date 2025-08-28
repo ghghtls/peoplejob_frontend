@@ -23,14 +23,14 @@ class AuthService {
     String? baseUrl,
   }) : _storage = storage ?? const FlutterSecureStorage(),
        _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? (dotenv.env['API_URL'] ?? 'http://localhost:8080'),
+       _baseUrl = baseUrl ?? (dotenv.env['API_URL'] ?? 'http://localhost:8888'),
        _dio =
            dio ??
            Dio(
              BaseOptions(
                baseUrl:
                    baseUrl ??
-                   (dotenv.env['API_URL'] ?? 'http://localhost:8080'),
+                   (dotenv.env['API_URL'] ?? 'http://localhost:8888'),
              ),
            ) {
     // JWT 자동 첨부 인터셉터 (Dio 전용)
