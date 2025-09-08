@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/model/notice.dart';
 
 class NoticeService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:8888'));
+  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   NoticeService() {

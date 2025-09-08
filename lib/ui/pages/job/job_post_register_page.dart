@@ -27,10 +27,13 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
   String? _selectedJobType;
   String? _selectedLocation;
   String? _selectedEducation;
-  String? _selectedCareer;
+  String? _selectedCareer; // DB에선 experience로 전송
 
   bool _isLoading = false;
   bool _isEditMode = false;
+
+  // 로그인 유저 번호 (DB: userNo)
+  int? _userNo;
 
   // 드롭다운 옵션들
   final List<String> _jobTypes = ['정규직', '계약직', '인턴', '프리랜서', '파트타임'];
@@ -75,9 +78,17 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
   void initState() {
     super.initState();
     _isEditMode = widget.jobId != null;
+    _loadUserNo();
     if (_isEditMode) {
       _loadJobData();
     }
+  }
+
+  Future<void> _loadUserNo() async {
+    final no = await _authService.getUserNo();
+    setState(() {
+      _userNo = no; // null일 수도 있으니 제출 시 체크
+    });
   }
 
   Future<void> _loadJobData() async {
@@ -92,10 +103,12 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
       _titleController.text = jobDetail['title'] ?? '';
       _contentController.text = jobDetail['content'] ?? '';
       _salaryController.text = jobDetail['salary'] ?? '';
-      _selectedJobType = jobDetail['jobtype'];
+
+      // DB 컬럼명 기준으로 읽기
+      _selectedJobType = jobDetail['jobType']; // ← jobType
       _selectedLocation = jobDetail['location'];
       _selectedEducation = jobDetail['education'];
-      _selectedCareer = jobDetail['career'];
+      _selectedCareer = jobDetail['experience']; // ← experience
 
       if (jobDetail['deadline'] != null) {
         _selectedDeadline = DateTime.parse(jobDetail['deadline']);
@@ -139,23 +152,31 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
       ).showSnackBar(const SnackBar(content: Text('마감일을 선택해주세요')));
       return;
     }
+    if (_userNo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인 정보를 확인해주세요 (userNo 없음)')),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
     });
 
     try {
+      // DB 스키마에 맞춘 키들 (jobopening)
       final jobData = {
         'title': _titleController.text,
         'content': _contentController.text,
-        'jobtype': _selectedJobType,
+        'jobType': _selectedJobType, // ← jobType
         'location': _selectedLocation,
         'education': _selectedEducation,
-        'career': _selectedCareer,
+        'experience': _selectedCareer, // ← experience
         'salary': _salaryController.text,
         'deadline': DateFormat('yyyy-MM-dd').format(_selectedDeadline!),
         'regdate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        'companyNo': 1, // TODO: 실제 로그인한 회사 번호로 변경
+        'userNo': _userNo, // ← userNo(FK)
+        // 필요 시 workType 등 추가 가능: 'workType': '상근' 등
       };
 
       if (_isEditMode) {
@@ -272,12 +293,14 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
                                 prefixIcon: const Icon(Icons.work),
                               ),
                               items:
-                                  _jobTypes.map((type) {
-                                    return DropdownMenuItem(
-                                      value: type,
-                                      child: Text(type),
-                                    );
-                                  }).toList(),
+                                  _jobTypes
+                                      .map(
+                                        (type) => DropdownMenuItem(
+                                          value: type,
+                                          child: Text(type),
+                                        ),
+                                      )
+                                      .toList(),
                               onChanged: (value) {
                                 setState(() {
                                   _selectedJobType = value;
@@ -301,12 +324,14 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
                                 prefixIcon: const Icon(Icons.location_on),
                               ),
                               items:
-                                  _locations.map((location) {
-                                    return DropdownMenuItem(
-                                      value: location,
-                                      child: Text(location),
-                                    );
-                                  }).toList(),
+                                  _locations
+                                      .map(
+                                        (location) => DropdownMenuItem(
+                                          value: location,
+                                          child: Text(location),
+                                        ),
+                                      )
+                                      .toList(),
                               onChanged: (value) {
                                 setState(() {
                                   _selectedLocation = value;
@@ -336,12 +361,14 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
                                 prefixIcon: const Icon(Icons.school),
                               ),
                               items:
-                                  _educations.map((education) {
-                                    return DropdownMenuItem(
-                                      value: education,
-                                      child: Text(education),
-                                    );
-                                  }).toList(),
+                                  _educations
+                                      .map(
+                                        (education) => DropdownMenuItem(
+                                          value: education,
+                                          child: Text(education),
+                                        ),
+                                      )
+                                      .toList(),
                               onChanged: (value) {
                                 setState(() {
                                   _selectedEducation = value;
@@ -365,12 +392,14 @@ class _JobPostRegisterPageState extends State<JobPostRegisterPage> {
                                 prefixIcon: const Icon(Icons.timeline),
                               ),
                               items:
-                                  _careers.map((career) {
-                                    return DropdownMenuItem(
-                                      value: career,
-                                      child: Text(career),
-                                    );
-                                  }).toList(),
+                                  _careers
+                                      .map(
+                                        (career) => DropdownMenuItem(
+                                          value: career,
+                                          child: Text(career),
+                                        ),
+                                      )
+                                      .toList(),
                               onChanged: (value) {
                                 setState(() {
                                   _selectedCareer = value;

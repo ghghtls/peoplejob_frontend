@@ -28,7 +28,7 @@ class BoardService {
   late final FlutterSecureStorage _storage;
 
   BoardService() {
-    _dio = _testDio ?? Dio(BaseOptions(baseUrl: 'http://localhost:8888'));
+    _dio = _testDio ?? Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
     _storage = _testStorage ?? const FlutterSecureStorage();
 
     // JWT 토큰을 자동으로 헤더에 추가하는 인터셉터(중복 추가 방지)

@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ScrapService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:8888'));
+  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   ScrapService() {

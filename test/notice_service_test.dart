@@ -28,7 +28,7 @@ class NoticeService {
   /// 테스트에서는 setTestOverrides로 클라이언트를 주입한 뒤 생성하세요.
   NoticeService({
     http.Client? client,
-    String baseUrl = 'http://localhost:8888',
+    String baseUrl = 'http://localhost:9000',
   }) {
     _client = client ?? _testClient ?? http.Client();
     _baseUrl = _testBaseUrl ?? baseUrl;

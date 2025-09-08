@@ -51,7 +51,7 @@ class ResumeService {
   /// - 테스트: `ResumeService.setTestOverrides(...)` 호출 후 `ResumeService()` 생성
   ResumeService({Dio? dio, FlutterSecureStorage? storage}) {
     _dio =
-        dio ?? _testDio ?? Dio(BaseOptions(baseUrl: 'http://localhost:8888'));
+        dio ?? _testDio ?? Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
     _storage = storage ?? _testStorage ?? const FlutterSecureStorage();
 
     // 동일한 인터셉터가 중복으로 붙지 않도록 정리 후 추가

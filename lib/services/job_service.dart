@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/model/job.dart';
 
 class JobService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:8888'));
+  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   JobService() {

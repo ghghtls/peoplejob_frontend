@@ -427,7 +427,12 @@ class _JobDetailPageState extends State<JobDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildInfoSection('기본 정보', [
-                    _buildInfoRow(Icons.work, '고용형태', _jobDetail!['jobtype']),
+                    _buildInfoRow(Icons.work, '고용형태', _jobDetail!['jobType']),
+                    _buildInfoRow(
+                      Icons.schedule,
+                      '근무형태',
+                      _jobDetail!['workType'],
+                    ),
                     _buildInfoRow(
                       Icons.location_on,
                       '근무지역',
@@ -441,7 +446,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                     _buildInfoRow(
                       Icons.timeline,
                       '경력요건',
-                      _jobDetail!['career'],
+                      _jobDetail!['experience'],
                     ),
                     if (_jobDetail!['salary'] != null &&
                         _jobDetail!['salary'].toString().isNotEmpty)
@@ -449,6 +454,13 @@ class _JobDetailPageState extends State<JobDetailPage> {
                         Icons.attach_money,
                         '급여조건',
                         _jobDetail!['salary'],
+                      ),
+                    if (_jobDetail!['company'] != null &&
+                        _jobDetail!['company'].toString().isNotEmpty)
+                      _buildInfoRow(
+                        Icons.apartment,
+                        '회사명',
+                        _jobDetail!['company'],
                       ),
                   ]),
                   const SizedBox(height: 24),
@@ -466,6 +478,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                   ]),
                   const SizedBox(height: 24),
                   _buildContentSection('상세 내용', _jobDetail!['content']),
+                  // 첨부파일은 공고 테이블에는 기본적으로 없음. 키가 있을 때만 표시.
                   if (_jobDetail!['originalFilename'] != null) ...[
                     const SizedBox(height: 24),
                     _buildAttachmentSection(),
@@ -593,7 +606,9 @@ class _JobDetailPageState extends State<JobDetailPage> {
   }
 
   Widget _buildInfoRow(IconData icon, String label, String? value) {
-    if (value == null || value.isEmpty) return const SizedBox.shrink();
+    if (value == null || value.toString().isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -613,7 +628,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
             ),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.black87)),
+            child: Text(
+              value.toString(),
+              style: const TextStyle(color: Colors.black87),
+            ),
           ),
         ],
       ),
@@ -642,7 +660,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
             border: Border.all(color: Colors.grey[200]!),
           ),
           child: Text(
-            content ?? '상세 내용이 없습니다.',
+            (content == null || content.isEmpty) ? '상세 내용이 없습니다.' : content,
             style: const TextStyle(
               fontSize: 16,
               height: 1.6,

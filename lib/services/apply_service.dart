@@ -7,10 +7,10 @@ class ApplyService {
   final String _baseUrl;
 
   ApplyService({Dio? dio, FlutterSecureStorage? storage, String? baseUrl})
-    : _baseUrl = baseUrl ?? 'http://localhost:8888',
+    : _baseUrl = baseUrl ?? 'http://localhost:9000', // 포트 9000으로 고정
       _storage = storage ?? const FlutterSecureStorage(),
       _dio =
-          dio ?? Dio(BaseOptions(baseUrl: baseUrl ?? 'http://localhost:8888')) {
+          dio ?? Dio(BaseOptions(baseUrl: baseUrl ?? 'http://localhost:9000')) {
     // JWT 토큰 자동 주입
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -26,6 +26,7 @@ class ApplyService {
   }
 
   // 지원하기
+  // (파라미터 이름은 기존 유지: jobOpeningNo -> 실제 전송은 jobNo)
   Future<bool> applyToJob({
     required int jobOpeningNo,
     required int resumeNo,
@@ -34,9 +35,10 @@ class ApplyService {
       await _dio.post(
         '/api/apply',
         data: {
-          'jobopeningNo': jobOpeningNo,
+          'jobNo': jobOpeningNo, // ✅ DB 컬럼명에 맞춤
           'resumeNo': resumeNo,
-          'regdate': DateTime.now().toIso8601String().split('T')[0],
+          'applyDate':
+              DateTime.now().toIso8601String().split('T')[0], // ✅ DATE 컬럼
         },
       );
       return true;
@@ -98,7 +100,10 @@ class ApplyService {
     try {
       final res = await _dio.get(
         '/api/apply/check',
-        queryParameters: {'jobopeningNo': jobOpeningNo, 'resumeNo': resumeNo},
+        queryParameters: {
+          'jobNo': jobOpeningNo, // ✅ DB 컬럼명
+          'resumeNo': resumeNo,
+        },
       );
       final data = res.data;
       return data is Map && data['applied'] == true;

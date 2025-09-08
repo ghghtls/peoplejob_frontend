@@ -57,7 +57,7 @@ void main() {
       applyService = ApplyService(
         dio: mockDio,
         storage: mockStorage,
-        baseUrl: 'http://localhost:8888',
+        baseUrl: 'http://localhost:9000',
       );
 
       // 기본 토큰 모킹
