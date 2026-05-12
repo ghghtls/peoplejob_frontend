@@ -272,4 +272,31 @@ class NoticeService {
       throw Exception('공지사항 통계 조회에 실패했습니다.');
     }
   }
+
+  // 작성자별 공지사항 조회
+  Future<List<Notice>> getNoticesByWriter(String writer) async {
+    try {
+      final response = await _dio.get('/api/notice/writer/$writer');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => Notice.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('작성자별 공지사항 조회 실패: $e');
+      throw Exception('작성자별 공지사항을 불러오는데 실패했습니다.');
+    }
+  }
+
+  // 조회수 증가
+  Future<bool> increaseViewCount(int noticeId) async {
+    try {
+      final response = await _dio.post('/api/notice/$noticeId/view');
+      return response.statusCode == 200;
+    } catch (e) {
+      print('조회수 증가 실패: $e');
+      // 조회수 증가는 실패해도 무시할 수 있음
+      return false;
+    }
+  }
 }

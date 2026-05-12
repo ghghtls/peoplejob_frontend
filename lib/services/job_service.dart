@@ -1,14 +1,15 @@
 // lib/services/job_service.dart
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/model/job.dart';
+import 'config/api_config.dart';
 
 class JobService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
+  final Dio _dio = Dio(BaseOptions(baseUrl: ApiConfig.apiUrl));
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   JobService() {
-    // JWT 토큰을 자동으로 헤더에 추가하는 인터셉터
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -19,7 +20,6 @@ class JobService {
           handler.next(options);
         },
         onError: (error, handler) async {
-          // 401 에러 시 토큰 갱신 또는 로그아웃 처리
           if (error.response?.statusCode == 401) {
             await _storage.delete(key: 'jwt');
           }
@@ -29,9 +29,7 @@ class JobService {
     );
   }
 
-  // ============ 기존 메서드들 ============
 
-  // 채용공고 전체 조회
   Future<List<dynamic>> getAllJobs() async {
     try {
       final response = await _dio.get('/api/jobopening');
@@ -41,7 +39,6 @@ class JobService {
     }
   }
 
-  // 채용공고 상세 조회
   Future<Map<String, dynamic>> getJobDetail(int jobId) async {
     try {
       final response = await _dio.get('/api/jobopening/$jobId');
@@ -51,7 +48,6 @@ class JobService {
     }
   }
 
-  // 채용공고 등록
   Future<bool> createJob(Map<String, dynamic> jobData) async {
     try {
       await _dio.post('/api/jobopening', data: jobData);
@@ -61,7 +57,6 @@ class JobService {
     }
   }
 
-  // 채용공고 수정
   Future<bool> updateJob(int jobId, Map<String, dynamic> jobData) async {
     try {
       await _dio.put('/api/jobopening/$jobId', data: jobData);
@@ -71,7 +66,6 @@ class JobService {
     }
   }
 
-  // 채용공고 삭제
   Future<bool> deleteJob(int jobId) async {
     try {
       await _dio.delete('/api/jobopening/$jobId');
@@ -81,7 +75,6 @@ class JobService {
     }
   }
 
-  // 채용공고 검색
   Future<List<dynamic>> searchJobs(String keyword) async {
     try {
       final response = await _dio.get(
@@ -93,12 +86,10 @@ class JobService {
     }
   }
 
-  // ============ 새로 추가: 상태 관리 메서드들 ============
 
-  // 임시저장
   Future<Map<String, dynamic>> saveDraft(Map<String, dynamic> jobData) async {
     try {
-      final response = await _dio.post('/api/jobs/draft', data: jobData);
+      final response = await _dio.post('/api/jobopening/draft', data: jobData);
       return {
         'success': true,
         'job': response.data['job'],
@@ -109,7 +100,6 @@ class JobService {
     }
   }
 
-  // 임시저장 목록 조회
   Future<Map<String, dynamic>> getUserDrafts(
     int userNo, {
     int page = 0,
@@ -117,7 +107,7 @@ class JobService {
   }) async {
     try {
       final response = await _dio.get(
-        '/api/jobs/user/$userNo/drafts',
+        '/api/jobopening/user/$userNo/drafts',
         queryParameters: {'page': page, 'size': size},
       );
       return {
@@ -133,11 +123,10 @@ class JobService {
     }
   }
 
-  // 게시하기 (임시저장 -> 게시중)
   Future<Map<String, dynamic>> publishJob(int jobNo, int userNo) async {
     try {
       final response = await _dio.post(
-        '/api/jobs/$jobNo/publish',
+        '/api/jobopening/$jobNo/publish',
         queryParameters: {'userNo': userNo},
       );
       return {
@@ -150,30 +139,56 @@ class JobService {
     }
   }
 
-  // 게시중인 채용공고만 조회 (일반 사용자용)
   Future<Map<String, dynamic>> getPublishedJobs({
     int page = 0,
     int size = 10,
   }) async {
     try {
       final response = await _dio.get(
-        '/api/jobs',
+        '/api/jobopening',
         queryParameters: {'status': 'published', 'page': page, 'size': size},
       );
+
+      // 응답 데이터가 null이거나 예상 형식이 아닌 경우 처리
+      if (response.data == null) {
+        return {
+          'success': true,
+          'jobs': [],
+          'totalElements': 0,
+          'totalPages': 0,
+          'currentPage': 0,
+          'hasNext': false,
+        };
+      }
+
       return {
         'success': true,
-        'jobs': response.data['content'],
-        'totalElements': response.data['totalElements'],
-        'totalPages': response.data['totalPages'],
-        'currentPage': response.data['number'],
-        'hasNext': !response.data['last'],
+        'jobs': response.data['content'] ?? [],
+        'totalElements': response.data['totalElements'] ?? 0,
+        'totalPages': response.data['totalPages'] ?? 0,
+        'currentPage': response.data['number'] ?? 0,
+        'hasNext': response.data['last'] != null ? !response.data['last'] : false,
       };
+    } on DioException catch (e) {
+      // 네트워크 오류는 로그만 남기고 빈 결과 반환
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        debugPrint('채용공고 목록 조회 실패 - 연결 오류: ${e.message}');
+        return {
+          'success': false,
+          'jobs': [],
+          'totalElements': 0,
+          'totalPages': 0,
+          'currentPage': 0,
+          'hasNext': false,
+        };
+      }
+      throw Exception('채용공고 목록 조회에 실패했습니다: $e');
     } catch (e) {
       throw Exception('채용공고 목록 조회에 실패했습니다: $e');
     }
   }
 
-  // 사용자별 상태별 채용공고 조회
   Future<Map<String, dynamic>> getUserJobsByStatus(
     int userNo,
     String? status, {
@@ -188,7 +203,7 @@ class JobService {
       }
 
       final response = await _dio.get(
-        '/api/jobs/user/$userNo',
+        '/api/jobopening/user/$userNo',
         queryParameters: queryParams,
       );
 
@@ -205,17 +220,15 @@ class JobService {
     }
   }
 
-  // 사용자의 채용공고 상태별 개수 조회
   Future<Map<String, dynamic>> getUserJobStatusCounts(int userNo) async {
     try {
-      final response = await _dio.get('/api/jobs/user/$userNo/status-counts');
+      final response = await _dio.get('/api/jobopening/user/$userNo/status-counts');
       return {'success': true, 'counts': response.data};
     } catch (e) {
       throw Exception('상태별 개수 조회에 실패했습니다: $e');
     }
   }
 
-  // 상태 변경
   Future<Map<String, dynamic>> changeJobStatus(
     int jobNo,
     String status,
@@ -223,7 +236,7 @@ class JobService {
   ) async {
     try {
       final response = await _dio.put(
-        '/api/jobs/$jobNo/status',
+        '/api/jobopening/$jobNo/status',
         queryParameters: {'status': status, 'userNo': userNo},
       );
       return {
@@ -236,7 +249,6 @@ class JobService {
     }
   }
 
-  // 검색 (게시중인 것만)
   Future<Map<String, dynamic>> searchPublishedJobs(
     String keyword, {
     int page = 0,
@@ -244,7 +256,7 @@ class JobService {
   }) async {
     try {
       final response = await _dio.get(
-        '/api/jobs/search',
+        '/api/jobopening/search',
         queryParameters: {'keyword': keyword, 'page': page, 'size': size},
       );
       return {
@@ -260,7 +272,6 @@ class JobService {
     }
   }
 
-  // 카테고리별 조회 (게시중인 것만)
   Future<Map<String, dynamic>> getJobsByCategory(
     String? jobType,
     String? location, {
@@ -279,7 +290,7 @@ class JobService {
       }
 
       final response = await _dio.get(
-        '/api/jobs/category',
+        '/api/jobopening/category',
         queryParameters: queryParams,
       );
 
@@ -296,12 +307,10 @@ class JobService {
     }
   }
 
-  // ============ 채용공고 작성/수정 관련 (새로운 API 엔드포인트 사용) ============
 
-  // 새 채용공고 생성 (기본 임시저장 상태)
   Future<Map<String, dynamic>> createJobPosting(Job job) async {
     try {
-      final response = await _dio.post('/api/jobs', data: job.toJson());
+      final response = await _dio.post('/api/jobopening', data: job.toJson());
       return {
         'success': true,
         'job': Job.fromJson(response.data['job']),
@@ -312,10 +321,9 @@ class JobService {
     }
   }
 
-  // 채용공고 수정 (새로운 API)
   Future<Map<String, dynamic>> updateJobPosting(int jobNo, Job job) async {
     try {
-      final response = await _dio.put('/api/jobs/$jobNo', data: job.toJson());
+      final response = await _dio.put('/api/jobopening/$jobNo', data: job.toJson());
       return {
         'success': true,
         'job': Job.fromJson(response.data['job']),
@@ -326,42 +334,37 @@ class JobService {
     }
   }
 
-  // 채용공고 삭제 (새로운 API)
   Future<Map<String, dynamic>> deleteJobPosting(int jobNo) async {
     try {
-      final response = await _dio.delete('/api/jobs/$jobNo');
+      final response = await _dio.delete('/api/jobopening/$jobNo');
       return {'success': true, 'message': response.data['message']};
     } catch (e) {
       throw Exception('채용공고 삭제에 실패했습니다: $e');
     }
   }
 
-  // 채용공고 상세 조회 (새로운 API)
   Future<Job> getJobPosting(int jobNo) async {
     try {
-      final response = await _dio.get('/api/jobs/$jobNo');
+      final response = await _dio.get('/api/jobopening/$jobNo');
       return Job.fromJson(response.data);
     } catch (e) {
       throw Exception('채용공고 조회에 실패했습니다: $e');
     }
   }
 
-  // ============ 관리자용 메서드들 ============
 
-  // 마감일 지난 채용공고 자동 마감 처리 (관리자용)
   Future<Map<String, dynamic>> expireOverdueJobs() async {
     try {
-      final response = await _dio.post('/api/jobs/expire-overdue');
+      final response = await _dio.post('/api/jobopening/expire-overdue');
       return {'success': true, 'message': response.data['message']};
     } catch (e) {
       throw Exception('자동 마감 처리에 실패했습니다: $e');
     }
   }
 
-  // 특정 채용공고 마감 처리 (관리자용)
   Future<Map<String, dynamic>> expireJob(int jobNo) async {
     try {
-      final response = await _dio.post('/api/jobs/$jobNo/expire');
+      final response = await _dio.post('/api/jobopening/$jobNo/expire');
       return {
         'success': true,
         'job': Job.fromJson(response.data['job']),
@@ -372,7 +375,6 @@ class JobService {
     }
   }
 
-  // 승인 대기중인 채용공고 목록 (관리자용)
   Future<Map<String, dynamic>> getPendingJobs({
     int page = 0,
     int size = 10,
@@ -395,9 +397,7 @@ class JobService {
     }
   }
 
-  // ============ 헬퍼 메서드들 ============
 
-  // 사용자 정보 가져오기
   Future<int?> getCurrentUserNo() async {
     try {
       final userNoStr = await _storage.read(key: 'userNo');
@@ -407,7 +407,6 @@ class JobService {
     }
   }
 
-  // 토큰 유효성 확인
   Future<bool> isTokenValid() async {
     try {
       final token = await _storage.read(key: 'jwt');
@@ -417,7 +416,6 @@ class JobService {
     }
   }
 
-  // 에러 메시지 파싱
   String parseErrorMessage(dynamic error) {
     if (error is DioException) {
       if (error.response?.data != null) {
@@ -446,7 +444,6 @@ class JobService {
     return error.toString();
   }
 
-  // Response 데이터 안전하게 파싱
   T? safeGet<T>(Map<String, dynamic>? data, String key, [T? defaultValue]) {
     try {
       return data?[key] as T? ?? defaultValue;
@@ -455,7 +452,6 @@ class JobService {
     }
   }
 
-  // 페이징 정보 파싱
   Map<String, dynamic> parsePagingInfo(Map<String, dynamic> response) {
     return {
       'totalElements': safeGet<int>(response, 'totalElements', 0),
@@ -467,9 +463,7 @@ class JobService {
     };
   }
 
-  // ============ 배치 작업용 메서드들 ============
 
-  // 여러 채용공고 상태 일괄 변경
   Future<Map<String, dynamic>> batchChangeStatus(
     List<int> jobNos,
     String status,
@@ -503,7 +497,6 @@ class JobService {
     }
   }
 
-  // 여러 채용공고 일괄 삭제
   Future<Map<String, dynamic>> batchDeleteJobs(List<int> jobNos) async {
     try {
       final results = <Map<String, dynamic>>[];
@@ -533,3 +526,6 @@ class JobService {
     }
   }
 }
+
+
+

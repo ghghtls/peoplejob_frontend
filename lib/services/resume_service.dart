@@ -1,6 +1,8 @@
 // lib/services/resume_service.dart
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'config/api_config.dart';
 
 /// 내부에서 식별 가능한 인증 인터셉터 (중복 추가 방지용)
 class _AuthTokenInterceptor extends Interceptor {
@@ -50,8 +52,11 @@ class ResumeService {
   /// - 일반 앱 코드: `ResumeService()` 그대로 사용
   /// - 테스트: `ResumeService.setTestOverrides(...)` 호출 후 `ResumeService()` 생성
   ResumeService({Dio? dio, FlutterSecureStorage? storage}) {
-    _dio =
-        dio ?? _testDio ?? Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
+    _dio = dio ??
+        _testDio ??
+        Dio(BaseOptions(
+          baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+        ));
     _storage = storage ?? _testStorage ?? const FlutterSecureStorage();
 
     // 동일한 인터셉터가 중복으로 붙지 않도록 정리 후 추가

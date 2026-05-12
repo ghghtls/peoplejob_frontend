@@ -1,17 +1,18 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'config/api_config.dart';
 
 class ApplyService {
   final Dio _dio;
   final FlutterSecureStorage _storage;
-  final String _baseUrl;
 
-  ApplyService({Dio? dio, FlutterSecureStorage? storage, String? baseUrl})
-    : _baseUrl = baseUrl ?? 'http://localhost:9000', // 포트 9000으로 고정
-      _storage = storage ?? const FlutterSecureStorage(),
-      _dio =
-          dio ?? Dio(BaseOptions(baseUrl: baseUrl ?? 'http://localhost:9000')) {
-    // JWT 토큰 자동 주입
+  ApplyService({Dio? dio, FlutterSecureStorage? storage})
+      : _storage = storage ?? const FlutterSecureStorage(),
+        _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+            )) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -21,24 +22,28 @@ class ApplyService {
           }
           handler.next(options);
         },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            await _storage.delete(key: 'jwt');
+          }
+          handler.next(error);
+        },
       ),
     );
   }
 
-  // 지원하기
-  // (파라미터 이름은 기존 유지: jobOpeningNo -> 실제 전송은 jobNo)
+  /// 지원하기
+  /// POST /api/apply
   Future<bool> applyToJob({
-    required int jobOpeningNo,
+    required int jobopeningNo,
     required int resumeNo,
   }) async {
     try {
       await _dio.post(
         '/api/apply',
         data: {
-          'jobNo': jobOpeningNo, // ✅ DB 컬럼명에 맞춤
+          'jobNo': jobopeningNo,  // 백엔드 DTO의 jobNo 필드명 사용
           'resumeNo': resumeNo,
-          'applyDate':
-              DateTime.now().toIso8601String().split('T')[0], // ✅ DATE 컬럼
         },
       );
       return true;
@@ -52,37 +57,30 @@ class ApplyService {
     }
   }
 
-  // 내 지원 내역 조회
-  Future<List<dynamic>> getMyApplications() async {
+  /// 이력서별 지원 내역 조회
+  /// GET /api/apply/resume/{resumeNo}
+  Future<List<dynamic>> getApplicationsByResume(int resumeNo) async {
     try {
-      final res = await _dio.get('/api/apply/my');
-      return res.data as List<dynamic>;
+      final res = await _dio.get('/api/apply/resume/$resumeNo');
+      return res.data is List ? res.data : [];
     } catch (e) {
       throw Exception('지원 내역을 불러오는데 실패했습니다: $e');
     }
   }
 
-  // 특정 채용공고의 지원자 목록 조회 (기업용)
-  Future<List<dynamic>> getJobApplications(int jobOpeningNo) async {
+  /// 채용공고별 지원자 목록 조회
+  /// GET /api/apply/job/{jobopeningNo}
+  Future<List<dynamic>> getApplicationsByJob(int jobopeningNo) async {
     try {
-      final res = await _dio.get('/api/apply/job/$jobOpeningNo');
-      return res.data as List<dynamic>;
+      final res = await _dio.get('/api/apply/job/$jobopeningNo');
+      return res.data is List ? res.data : [];
     } catch (e) {
       throw Exception('지원자 목록을 불러오는데 실패했습니다: $e');
     }
   }
 
-  // 모든 지원 내역 조회 (기업용)
-  Future<List<dynamic>> getAllApplications() async {
-    try {
-      final res = await _dio.get('/api/apply');
-      return res.data as List<dynamic>;
-    } catch (e) {
-      throw Exception('지원 내역을 불러오는데 실패했습니다: $e');
-    }
-  }
-
-  // 지원 취소
+  /// 지원 취소
+  /// DELETE /api/apply/{applyNo}
   Future<bool> cancelApplication(int applyNo) async {
     try {
       await _dio.delete('/api/apply/$applyNo');
@@ -92,44 +90,80 @@ class ApplyService {
     }
   }
 
-  // 지원 상태 확인 (공고+이력서)
-  Future<bool> checkApplicationStatus({
-    required int jobOpeningNo,
-    required int resumeNo,
-  }) async {
+  /// 내 지원 목록 조회 (현재 로그인한 사용자)
+  Future<List<dynamic>> getMyApplications() async {
+    try {
+      final userNo = await _getUserNo();
+      if (userNo == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+      final res = await _dio.get('/api/apply/user/$userNo');
+      return res.data is List ? res.data : [];
+    } catch (e) {
+      throw Exception('내 지원 내역을 불러오는데 실패했습니다: $e');
+    }
+  }
+
+  /// 채용공고별 지원자 목록 조회 (별칭)
+  Future<List<dynamic>> getJobApplications(int jobOpeningNo) async {
+    return getApplicationsByJob(jobOpeningNo);
+  }
+
+  /// 모든 지원 내역 조회 (관리자용)
+  Future<List<dynamic>> getAllApplications() async {
+    try {
+      final res = await _dio.get('/api/apply');
+      return res.data is List ? res.data : [];
+    } catch (e) {
+      throw Exception('지원 내역을 불러오는데 실패했습니다: $e');
+    }
+  }
+
+  /// 지원 상태 확인
+  Future<Map<String, dynamic>?> checkApplicationStatus(
+    int jobOpeningNo,
+    int resumeNo,
+  ) async {
     try {
       final res = await _dio.get(
-        '/api/apply/check',
+        '/api/apply/status',
         queryParameters: {
-          'jobNo': jobOpeningNo, // ✅ DB 컬럼명
+          'jobopeningNo': jobOpeningNo,
           'resumeNo': resumeNo,
         },
       );
-      final data = res.data;
-      return data is Map && data['applied'] == true;
-    } catch (_) {
-      return false;
+      return res.data is Map ? res.data as Map<String, dynamic> : null;
+    } catch (e) {
+      return null;
     }
   }
 
-  // 특정 채용공고에 지원했는지 확인
+  /// 특정 채용공고에 지원했는지 확인
   Future<bool> hasAppliedToJob(int jobOpeningNo) async {
     try {
-      final res = await _dio.get('/api/apply/check-job/$jobOpeningNo');
-      final data = res.data;
-      return data is Map && data['applied'] == true;
-    } catch (_) {
+      final userNo = await _getUserNo();
+      if (userNo == null) return false;
+
+      final res = await _dio.get(
+        '/api/apply/check',
+        queryParameters: {
+          'jobopeningNo': jobOpeningNo,
+          'userNo': userNo,
+        },
+      );
+      return res.data == true || (res.data is Map && res.data['hasApplied'] == true);
+    } catch (e) {
       return false;
     }
   }
 
-  // 지원 통계 (기업용)
-  Future<Map<String, dynamic>> getApplicationStats() async {
+  /// 내부 헬퍼: userNo 가져오기
+  Future<int?> _getUserNo() async {
     try {
-      final res = await _dio.get('/api/apply/stats');
-      return Map<String, dynamic>.from(res.data as Map);
+      final userNoStr = await _storage.read(key: 'userNo');
+      return userNoStr != null ? int.tryParse(userNoStr) : null;
     } catch (e) {
-      throw Exception('지원 통계를 불러오는데 실패했습니다: $e');
+      return null;
     }
   }
 }

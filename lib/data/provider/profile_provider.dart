@@ -133,7 +133,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
     try {
       final result = await _authService.updateUserProfile(
-        name: name,
+        username: name,
         email: email,
         phone: phone,
         address: address,

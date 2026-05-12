@@ -756,15 +756,33 @@ final jobListProvider = Provider<AsyncValue<List<Job>>>((ref) {
 
 // 게시된 채용공고만 가져오는 Provider (홈페이지용)
 final publishedJobListProvider = FutureProvider<List<Job>>((ref) async {
-  final notifier = ref.read(jobProvider.notifier);
-  await notifier.loadPublishedJobs(refresh: true);
-  final state = ref.read(jobProvider);
+  final jobService = JobService();
 
-  if (state.error != null) {
-    throw Exception(state.error);
+  try {
+    final result = await jobService.getPublishedJobs(page: 0);
+
+    if (result['success']) {
+      final jobsData = result['jobs'];
+
+      // 데이터가 null이거나 빈 리스트인 경우 빈 리스트 반환
+      if (jobsData == null || (jobsData is List && jobsData.isEmpty)) {
+        return [];
+      }
+
+      final jobs = (jobsData as List)
+          .map((jobJson) => Job.fromJson(jobJson))
+          .toList();
+      return jobs;
+    } else {
+      // API 호출은 성공했지만 success가 false인 경우
+      return [];
+    }
+  } catch (e) {
+    // 네트워크 오류나 기타 예외 발생 시 빈 리스트 반환
+    // 사용자에게 오류를 보여주지 않고 조용히 실패 처리
+    debugPrint('채용공고 목록 조회 실패 (무시됨): $e');
+    return [];
   }
-
-  return state.jobs;
 });
 
 // 랜덤 채용공고 Provider (홈페이지 랜덤 섹션용)

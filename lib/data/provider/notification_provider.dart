@@ -3,6 +3,8 @@ import 'package:peoplejob_frontend/data/model/notification_model.dart';
 import 'package:peoplejob_frontend/services/notification_service.dart';
 
 class NotificationProvider with ChangeNotifier {
+  final NotificationService _notificationService = NotificationService();
+
   List<NotificationModel> _notifications = [];
   List<NotificationModel> _unreadNotifications = [];
   NotificationStats? _stats;
@@ -24,7 +26,6 @@ class NotificationProvider with ChangeNotifier {
 
   /// 알림 목록 로드
   Future<void> loadNotifications({
-    required String token,
     bool refresh = false,
     int pageSize = 20,
   }) async {
@@ -41,8 +42,7 @@ class NotificationProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await NotificationService.getNotifications(
-        token: token,
+      final result = await _notificationService.getNotifications(
         page: _currentPage,
         size: pageSize,
       );
@@ -73,11 +73,9 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// 읽지 않은 알림 로드
-  Future<void> loadUnreadNotifications(String token) async {
+  Future<void> loadUnreadNotifications() async {
     try {
-      final result = await NotificationService.getUnreadNotifications(
-        token: token,
-      );
+      final result = await _notificationService.getUnreadNotifications();
 
       if (result['success']) {
         _unreadNotifications =
@@ -93,9 +91,9 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// 읽지 않은 알림 개수 새로고침
-  Future<void> refreshUnreadCount(String token) async {
+  Future<void> refreshUnreadCount() async {
     try {
-      final result = await NotificationService.getUnreadCount(token: token);
+      final result = await _notificationService.getUnreadCount();
       if (result['success']) {
         _unreadCount = result['count'];
         notifyListeners();
@@ -106,11 +104,9 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// 알림 통계 로드
-  Future<void> loadStats(String token) async {
+  Future<void> loadStats() async {
     try {
-      final result = await NotificationService.getNotificationStats(
-        token: token,
-      );
+      final result = await _notificationService.getNotificationStats();
 
       if (result['success']) {
         _stats = NotificationStats.fromJson(result['data']);
@@ -122,10 +118,9 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// 특정 알림 읽음 처리
-  Future<bool> markAsRead(String token, int notificationId) async {
+  Future<bool> markAsRead(int notificationId) async {
     try {
-      final result = await NotificationService.markAsRead(
-        token: token,
+      final result = await _notificationService.markAsRead(
         notificationId: notificationId,
       );
 
@@ -165,9 +160,9 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// 모든 알림 읽음 처리
-  Future<bool> markAllAsRead(String token) async {
+  Future<bool> markAllAsRead() async {
     try {
-      final result = await NotificationService.markAllAsRead(token: token);
+      final result = await _notificationService.markAllAsRead();
 
       if (result['success']) {
         // 로컬 상태 업데이트
@@ -204,10 +199,9 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// 특정 알림 삭제
-  Future<bool> deleteNotification(String token, int notificationId) async {
+  Future<bool> deleteNotification(int notificationId) async {
     try {
-      final result = await NotificationService.deleteNotification(
-        token: token,
+      final result = await _notificationService.deleteNotification(
         notificationId: notificationId,
       );
 
@@ -228,12 +222,10 @@ class NotificationProvider with ChangeNotifier {
 
   /// 여러 알림 일괄 삭제
   Future<bool> deleteMultipleNotifications(
-    String token,
     List<int> notificationIds,
   ) async {
     try {
-      final result = await NotificationService.deleteMultipleNotifications(
-        token: token,
+      final result = await _notificationService.deleteMultipleNotifications(
         notificationIds: notificationIds,
       );
 
@@ -253,11 +245,9 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// 모든 알림 삭제
-  Future<bool> deleteAllNotifications(String token) async {
+  Future<bool> deleteAllNotifications() async {
     try {
-      final result = await NotificationService.deleteAllNotifications(
-        token: token,
-      );
+      final result = await _notificationService.deleteAllNotifications();
 
       if (result['success']) {
         // 로컬 상태 초기화

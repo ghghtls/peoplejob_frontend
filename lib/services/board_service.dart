@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'config/api_config.dart';
 
 class BoardService {
   // ---------- 테스트 훅 ----------
@@ -28,7 +30,10 @@ class BoardService {
   late final FlutterSecureStorage _storage;
 
   BoardService() {
-    _dio = _testDio ?? Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
+    _dio = _testDio ??
+        Dio(BaseOptions(
+          baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+        ));
     _storage = _testStorage ?? const FlutterSecureStorage();
 
     // JWT 토큰을 자동으로 헤더에 추가하는 인터셉터(중복 추가 방지)

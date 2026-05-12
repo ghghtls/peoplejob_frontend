@@ -1,75 +1,101 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'config/api_config.dart';
 
 class ScrapService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
+  final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  ScrapService() {
-    // JWT 토큰을 자동으로 헤더에 추가하는 인터셉터
+  ScrapService({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+            )) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await _storage.read(key: 'jwt');
-          if (token != null) {
+          if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           handler.next(options);
+        },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            await _storage.delete(key: 'jwt');
+          }
+          handler.next(error);
         },
       ),
     );
   }
 
-  // 스크랩 추가
-  Future<bool> addScrap(int jobOpeningNo) async {
+  /// 스크랩 등록
+  /// POST /api/scrap
+  Future<bool> addScrap(int jobopeningNo) async {
     try {
+      final userNo = await _getUserNo();
+      if (userNo == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
       await _dio.post(
         '/api/scrap',
         data: {
-          'jobopeningNo': jobOpeningNo,
-          'regdate': DateTime.now().toIso8601String().split('T')[0],
+          'userNo': userNo,
+          'jobopeningNo': jobopeningNo,
         },
       );
       return true;
     } catch (e) {
       if (e is DioException && e.response?.statusCode == 400) {
-        throw Exception('이미 스크랩한 채용공고입니다');
+        throw Exception('이미 스크랩한 채용공고입니다.');
       }
       throw Exception('스크랩 추가에 실패했습니다: $e');
     }
   }
 
-  // 스크랩 제거
-  Future<bool> removeScrap(int jobOpeningNo) async {
+  /// 스크랩 삭제 (user + job 기준)
+  /// DELETE /api/scrap?userNo={userNo}&jobopeningNo={jobopeningNo}
+  Future<bool> removeScrap(int jobopeningNo) async {
     try {
-      await _dio.delete('/api/scrap/job/$jobOpeningNo');
+      final userNo = await _getUserNo();
+      if (userNo == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      await _dio.delete(
+        '/api/scrap',
+        queryParameters: {
+          'userNo': userNo,
+          'jobopeningNo': jobopeningNo,
+        },
+      );
       return true;
     } catch (e) {
       throw Exception('스크랩 제거에 실패했습니다: $e');
     }
   }
 
-  // 내 스크랩 목록 조회
+  /// 내 스크랩 목록 조회
+  /// GET /api/scrap/{userNo}
   Future<List<dynamic>> getMyScrapList() async {
     try {
-      final response = await _dio.get('/api/scrap/my');
-      return response.data;
+      final userNo = await _getUserNo();
+      if (userNo == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await _dio.get('/api/scrap/$userNo');
+      return response.data is List ? response.data : [];
     } catch (e) {
       throw Exception('스크랩 목록을 불러오는데 실패했습니다: $e');
     }
   }
 
-  // 스크랩 여부 확인
-  Future<bool> isScraped(int jobOpeningNo) async {
-    try {
-      final response = await _dio.get('/api/scrap/check/$jobOpeningNo');
-      return response.data['scraped'] ?? false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // 특정 스크랩 삭제 (스크랩 ID로)
+  /// 스크랩 개별 삭제
+  /// DELETE /api/scrap/{scrapNo}
   Future<bool> deleteScrapById(int scrapNo) async {
     try {
       await _dio.delete('/api/scrap/$scrapNo');
@@ -79,23 +105,32 @@ class ScrapService {
     }
   }
 
-  // 전체 스크랩 조회 (관리자용)
-  Future<List<dynamic>> getAllScraps() async {
+  /// 특정 채용공고가 스크랩되어 있는지 확인
+  Future<bool> isScraped(int jobOpeningNo) async {
     try {
-      final response = await _dio.get('/api/scrap');
-      return response.data;
+      final userNo = await _getUserNo();
+      if (userNo == null) return false;
+
+      final res = await _dio.get(
+        '/api/scrap/check',
+        queryParameters: {
+          'jobopeningNo': jobOpeningNo,
+          'userNo': userNo,
+        },
+      );
+      return res.data == true || (res.data is Map && res.data['isScraped'] == true);
     } catch (e) {
-      throw Exception('스크랩 목록을 불러오는데 실패했습니다: $e');
+      return false;
     }
   }
 
-  // 스크랩 통계
-  Future<Map<String, dynamic>> getScrapStats() async {
+  /// 내부 헬퍼: userNo 가져오기
+  Future<int?> _getUserNo() async {
     try {
-      final response = await _dio.get('/api/scrap/stats');
-      return response.data;
+      final userNoStr = await _storage.read(key: 'userNo');
+      return userNoStr != null ? int.tryParse(userNoStr) : null;
     } catch (e) {
-      throw Exception('스크랩 통계를 불러오는데 실패했습니다: $e');
+      return null;
     }
   }
 }

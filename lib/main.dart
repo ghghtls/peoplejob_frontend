@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'package:peoplejob_frontend/config/theme/app_theme.dart';
 import 'package:peoplejob_frontend/data/model/inquiry.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_list_page.dart';
@@ -105,11 +106,7 @@ class MyApp extends fr.ConsumerWidget {
 
     return MaterialApp(
       title: 'PeopleJob',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-        fontFamily: 'NotoSans',
-      ),
+      theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {

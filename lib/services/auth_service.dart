@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart'; // debugPrint
@@ -6,14 +6,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dio/dio.dart';
+import 'config/api_config.dart';
 
 class AuthService {
-  // 주입 가능한 의존성들
   final FlutterSecureStorage _storage;
   final http.Client _client;
   final Dio _dio;
 
-  // 구성용
   final String _baseUrl;
 
   AuthService({
@@ -23,17 +22,14 @@ class AuthService {
     String? baseUrl,
   }) : _storage = storage ?? const FlutterSecureStorage(),
        _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? (dotenv.env['API_URL'] ?? 'http://localhost:9000'),
+       _baseUrl = baseUrl ?? dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
        _dio =
            dio ??
            Dio(
              BaseOptions(
-               baseUrl:
-                   baseUrl ??
-                   (dotenv.env['API_URL'] ?? 'http://localhost:9000'),
+               baseUrl: baseUrl ?? dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
              ),
            ) {
-    // JWT 자동 첨부 인터셉터 (Dio 전용)
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -78,7 +74,6 @@ class AuthService {
 
   /* ============================== 인증 로직 ============================== */
 
-  // JWT 로그인
   Future<Map<String, dynamic>?> login({
     required String userid,
     required String password,
@@ -93,7 +88,6 @@ class AuthService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
 
-        // 토큰 및 사용자 정보 저장
         await _storage.write(key: 'jwt', value: data['token']);
         await _storage.write(key: 'userid', value: data['userid']);
         await _storage.write(key: 'userNo', value: data['userNo'].toString());
@@ -106,14 +100,119 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      debugPrint('로그인 오류: $e');
+      debugPrint('로그인 오류: ');
       return null;
+    }
+  }
+  /* ============================== 회원가입 ============================== */
+
+  /// 회원가입
+  Future<Map<String, dynamic>?> register({
+    required String userid,
+    required String password,
+    required String username,
+    required String email,
+    required String userType,
+    String? phone,
+    String? address,
+    String? detailAddress,
+    String? zipcode,
+    // 기업회원 전용 필드
+    String? companyName,
+    String? businessNumber,
+    String? companyPhone,
+    String? companyAddress,
+    String? ceoName,
+    String? companyType,
+    int? employeeCount,
+    String? establishedYear,
+    String? website,
+    String? companyDescription,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'userid': userid,
+        'password': password,
+        'username': username,
+        'email': email,
+        'userType': userType,
+        if (phone != null) 'phone': phone,
+        if (address != null) 'address': address,
+        if (detailAddress != null) 'detailAddress': detailAddress,
+        if (zipcode != null) 'zipcode': zipcode,
+        if (companyName != null) 'companyName': companyName,
+        if (businessNumber != null) 'businessNumber': businessNumber,
+        if (companyPhone != null) 'companyPhone': companyPhone,
+        if (companyAddress != null) 'companyAddress': companyAddress,
+        if (ceoName != null) 'ceoName': ceoName,
+        if (companyType != null) 'companyType': companyType,
+        if (employeeCount != null) 'employeeCount': employeeCount,
+        if (establishedYear != null) 'establishedYear': establishedYear,
+        if (website != null) 'website': website,
+        if (companyDescription != null) 'companyDescription': companyDescription,
+      };
+
+      final res = await _client.post(
+        Uri.parse('$_baseUrl/api/users/register'),
+        headers: _jsonHeaders(),
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(res.body));
+      }
+      
+      if (res.statusCode == 400) {
+        final error = jsonDecode(res.body);
+        throw Exception(error['error'] ?? '회원가입 실패');
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('회원가입 오류: $e');
+      rethrow;
+    }
+  }
+
+  /// 이메일 인증
+  Future<bool> verifyEmail({
+    required String userid,
+    required String code,
+  }) async {
+    try {
+      final res = await _client.post(
+        Uri.parse('$_baseUrl/api/users/verify?userid=$userid&code=$code'),
+        headers: _jsonHeaders(),
+      );
+
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('이메일 인증 오류: $e');
+      return false;
+    }
+  }
+
+  /// 아이디 중복 확인
+  Future<Map<String, dynamic>> checkUserid(String userid) async {
+    try {
+      final res = await _client.get(
+        Uri.parse('$_baseUrl/api/users/check/$userid'),
+        headers: _jsonHeaders(),
+      );
+
+      if (res.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(res.body));
+      }
+      
+      return {'available': false, 'message': '중복 확인 실패'};
+    } catch (e) {
+      debugPrint('아이디 중복 확인 오류: $e');
+      return {'available': false, 'message': '중복 확인 오류'};
     }
   }
 
   /* ============================= 회원 정보 ============================== */
 
-  // 회원 정보 조회
   Future<Map<String, dynamic>?> getUserProfile() async {
     try {
       final userNo = await getUserNo();
@@ -130,22 +229,20 @@ class AuthService {
       if (res.statusCode == 200) {
         return Map<String, dynamic>.from(jsonDecode(res.body));
       }
-      throw Exception('회원 정보 조회 실패: ${res.statusCode}');
+      throw Exception('회원 정보 조회 실패: ');
     } catch (e) {
-      debugPrint('회원 정보 조회 오류: $e');
+      debugPrint('회원 정보 조회 오류: ');
       rethrow;
     }
   }
 
-  // 회원 정보 수정 (개인/기업 공용)
   Future<Map<String, dynamic>?> updateUserProfile({
-    required String name,
+    required String username,
     required String email,
     String? phone,
     String? address,
     String? detailAddress,
     String? zipcode,
-    // 기업회원 전용
     String? companyName,
     String? businessNumber,
     String? companyPhone,
@@ -165,7 +262,7 @@ class AuthService {
 
       final token = await getToken();
       final body = <String, dynamic>{
-        'name': name,
+        'username': username,
         'email': email,
         if (phone != null) 'phone': phone,
         if (address != null) 'address': address,
@@ -193,11 +290,10 @@ class AuthService {
       if (res.statusCode == 200) {
         final data = Map<String, dynamic>.from(jsonDecode(res.body));
 
-        // 로컬 저장소 업데이트
         final user = data['user'];
         if (user is Map) {
-          if (user['name'] != null) {
-            await _storage.write(key: 'name', value: user['name'] as String);
+          if (user['username'] != null) {
+            await _storage.write(key: 'name', value: user['username'] as String);
           }
           if (user['email'] != null) {
             await _storage.write(key: 'email', value: user['email'] as String);
@@ -205,14 +301,13 @@ class AuthService {
         }
         return data;
       }
-      throw Exception('회원 정보 수정 실패: ${res.statusCode}');
+      throw Exception('회원 정보 수정 실패: ');
     } catch (e) {
-      debugPrint('회원 정보 수정 오류: $e');
+      debugPrint('회원 정보 수정 오류: ');
       rethrow;
     }
   }
 
-  // 비밀번호 변경
   Future<bool> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -239,10 +334,10 @@ class AuthService {
         final err = jsonDecode(res.body);
         throw Exception(err['error'] ?? '비밀번호 변경 실패');
       } catch (_) {
-        throw Exception('비밀번호 변경 실패: ${res.statusCode}');
+        throw Exception('비밀번호 변경 실패: ');
       }
     } catch (e) {
-      debugPrint('비밀번호 변경 오류: $e');
+      debugPrint('비밀번호 변경 오류: ');
       rethrow;
     }
   }
@@ -284,7 +379,7 @@ class AuthService {
       }
       throw Exception('프로필 이미지 업로드 실패');
     } catch (e) {
-      debugPrint('프로필 이미지 업로드 오류: $e');
+      debugPrint('프로필 이미지 업로드 오류: ');
       rethrow;
     }
   }
@@ -303,7 +398,7 @@ class AuthService {
       );
       return res.statusCode == 200;
     } catch (e) {
-      debugPrint('프로필 이미지 삭제 오류: $e');
+      debugPrint('프로필 이미지 삭제 오류: ');
       return false;
     }
   }
@@ -324,17 +419,15 @@ class AuthService {
       );
 
       if (res.statusCode == 200) {
-        await logout(); // 로컬 저장소 정리
         return true;
       }
       return false;
     } catch (e) {
-      debugPrint('회원 탈퇴 오류: $e');
+      debugPrint('회원 탈퇴 오류: ');
       return false;
     }
   }
 
-  // 인증된 요청 헬퍼 (테스트에서 헤더 검증 용)
   Future<http.Response> authenticatedGet(String endpoint) async {
     final token = await getToken();
     return _client.get(
@@ -355,3 +448,5 @@ class AuthService {
     );
   }
 }
+
+
