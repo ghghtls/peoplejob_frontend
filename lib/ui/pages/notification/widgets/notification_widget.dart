@@ -5,13 +5,11 @@ import 'package:provider/provider.dart';
 
 /// 알림 아이콘과 뱃지를 표시하는 위젯
 class NotificationBadge extends StatefulWidget {
-  final String token;
   final Color? iconColor;
   final double? iconSize;
 
   const NotificationBadge({
     Key? key,
-    required this.token,
     this.iconColor,
     this.iconSize,
   }) : super(key: key);
@@ -30,7 +28,7 @@ class _NotificationBadgeState extends State<NotificationBadge> {
   }
 
   void _refreshUnreadCount() {
-    context.read<NotificationProvider>().refreshUnreadCount(widget.token);
+    context.read<NotificationProvider>().refreshUnreadCount();
   }
 
   @override
@@ -85,7 +83,7 @@ class _NotificationBadgeState extends State<NotificationBadge> {
     Navigator.of(context)
         .push(
           MaterialPageRoute(
-            builder: (context) => NotificationPage(token: widget.token),
+            builder: (context) => const NotificationPage(),
           ),
         )
         .then((_) {
@@ -97,12 +95,10 @@ class _NotificationBadgeState extends State<NotificationBadge> {
 
 /// 최근 알림을 간단히 표시하는 드롭다운 위젯
 class NotificationDropdown extends StatefulWidget {
-  final String token;
   final Widget child;
 
   const NotificationDropdown({
     Key? key,
-    required this.token,
     required this.child,
   }) : super(key: key);
 
@@ -137,7 +133,7 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
     });
 
     // 최근 알림 로드
-    context.read<NotificationProvider>().loadUnreadNotifications(widget.token);
+    context.read<NotificationProvider>().loadUnreadNotifications();
   }
 
   void _closeDropdown() {
@@ -204,9 +200,7 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
                               _closeDropdown();
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder:
-                                      (context) =>
-                                          NotificationPage(token: widget.token),
+                                  builder: (context) => const NotificationPage(),
                                 ),
                               );
                             },
@@ -265,10 +259,7 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
                                 ),
                                 onTap: () {
                                   _closeDropdown();
-                                  provider.markAsRead(
-                                    widget.token,
-                                    notification.id,
-                                  );
+                                  provider.markAsRead(notification.id);
                                   // 알림 관련 페이지로 이동
                                   if (notification.actionUrl != null) {
                                     _navigateToActionUrl(

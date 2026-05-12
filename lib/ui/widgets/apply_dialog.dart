@@ -78,7 +78,7 @@ class _ApplyDialogState extends State<ApplyDialog> {
 
     try {
       await _applyService.applyToJob(
-        jobOpeningNo: widget.jobOpeningNo,
+        jobopeningNo: widget.jobOpeningNo,
         resumeNo: _selectedResumeNo!,
       );
 
@@ -290,11 +290,15 @@ class _ApplyDialogState extends State<ApplyDialog> {
                                                 color: Colors.grey[600],
                                               ),
                                               const SizedBox(width: 4),
-                                              Text(
-                                                resume['hopeJobtype'],
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[600],
+                                              Flexible(
+                                                child: Text(
+                                                  resume['hopeJobtype'],
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
@@ -307,11 +311,15 @@ class _ApplyDialogState extends State<ApplyDialog> {
                                                 color: Colors.grey[600],
                                               ),
                                               const SizedBox(width: 4),
-                                              Text(
-                                                resume['hopeLocation'],
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[600],
+                                              Flexible(
+                                                child: Text(
+                                                  resume['hopeLocation'],
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],

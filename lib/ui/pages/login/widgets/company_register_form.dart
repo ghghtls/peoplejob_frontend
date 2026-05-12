@@ -29,6 +29,17 @@ class _CompanyState extends ConsumerState<CompanyRegisterForm> {
   final _address = TextEditingController();
   final _addressDetail = TextEditingController();
 
+  // 추가 필수 필드
+  final _businessNumber = TextEditingController(); // 사업자번호
+  final _ceoName = TextEditingController(); // 대표자명
+
+  // 추가 선택 필드
+  final _companyType = TextEditingController(); // 회사 유형
+  final _employeeCount = TextEditingController(); // 직원 수
+  final _establishedYear = TextEditingController(); // 설립연도
+  final _website = TextEditingController(); // 웹사이트
+  final _companyDescription = TextEditingController(); // 회사 소개
+
   // 백엔드 URL
   final String _baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:8888';
 
@@ -43,6 +54,13 @@ class _CompanyState extends ConsumerState<CompanyRegisterForm> {
     _zipcode.dispose();
     _address.dispose();
     _addressDetail.dispose();
+    _businessNumber.dispose();
+    _ceoName.dispose();
+    _companyType.dispose();
+    _employeeCount.dispose();
+    _establishedYear.dispose();
+    _website.dispose();
+    _companyDescription.dispose();
     super.dispose();
   }
 
@@ -81,6 +99,8 @@ class _CompanyState extends ConsumerState<CompanyRegisterForm> {
     try {
       // 아이디 중복 체크
       final isAvailable = await _checkUseridAvailable();
+      if (!mounted) return;
+
       if (!isAvailable) {
         ScaffoldMessenger.of(
           context,
@@ -91,13 +111,30 @@ class _CompanyState extends ConsumerState<CompanyRegisterForm> {
       final payload = {
         "userid": _userid.text.trim(),
         "password": _password.text,
-        "name": _name.text.trim(), // 회사명
+        "username": _name.text.trim(), // 회사명 -> username으로 백엔드 매핑
         "email": _email.text.trim(),
         "phone": _phone.text.trim(),
         "zipcode": _zipcode.text.trim(),
         "address": _address.text.trim(),
-        "addressDetail": _addressDetail.text.trim(),
+        "detailAddress": _addressDetail.text.trim(),
         "userType": "company", // 기업회원
+
+        // 필수 필드
+        "companyName": _name.text.trim(),
+        "businessNumber": _businessNumber.text.trim(),
+        "ceoName": _ceoName.text.trim(),
+
+        // 선택 필드
+        if (_companyType.text.trim().isNotEmpty)
+          "companyType": _companyType.text.trim(),
+        if (_employeeCount.text.trim().isNotEmpty)
+          "employeeCount": int.tryParse(_employeeCount.text.trim()),
+        if (_establishedYear.text.trim().isNotEmpty)
+          "establishedYear": _establishedYear.text.trim(),
+        if (_website.text.trim().isNotEmpty)
+          "website": _website.text.trim(),
+        if (_companyDescription.text.trim().isNotEmpty)
+          "companyDescription": _companyDescription.text.trim(),
       };
 
       final response = await http.post(
@@ -261,6 +298,36 @@ class _CompanyState extends ConsumerState<CompanyRegisterForm> {
           ),
           const SizedBox(height: 8),
 
+          // 사업자번호 (필수)
+          TextFormField(
+            controller: _businessNumber,
+            decoration: const InputDecoration(
+              labelText: '사업자번호 *',
+              hintText: '000-00-00000',
+            ),
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return '사업자번호를 입력해주세요';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 8),
+
+          // 대표자명 (필수)
+          TextFormField(
+            controller: _ceoName,
+            decoration: const InputDecoration(labelText: '대표자명 *'),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return '대표자명을 입력해주세요';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 8),
+
           // 담당자 이메일
           TextFormField(
             controller: _email,
@@ -330,6 +397,68 @@ class _CompanyState extends ConsumerState<CompanyRegisterForm> {
           TextFormField(
             controller: _addressDetail,
             decoration: const InputDecoration(labelText: '상세주소'),
+          ),
+          const SizedBox(height: 16),
+
+          // --- 추가 정보 (선택) ---
+          const Divider(),
+          const Text(
+            '추가 정보 (선택)',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+
+          // 회사 유형
+          TextFormField(
+            controller: _companyType,
+            decoration: const InputDecoration(
+              labelText: '회사 유형',
+              hintText: '예: 주식회사, 유한회사',
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 직원 수
+          TextFormField(
+            controller: _employeeCount,
+            decoration: const InputDecoration(
+              labelText: '직원 수',
+              hintText: '예: 50',
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+
+          // 설립연도
+          TextFormField(
+            controller: _establishedYear,
+            decoration: const InputDecoration(
+              labelText: '설립연도',
+              hintText: '예: 2020',
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+
+          // 웹사이트
+          TextFormField(
+            controller: _website,
+            decoration: const InputDecoration(
+              labelText: '웹사이트',
+              hintText: 'https://company.com',
+            ),
+            keyboardType: TextInputType.url,
+          ),
+          const SizedBox(height: 8),
+
+          // 회사 소개
+          TextFormField(
+            controller: _companyDescription,
+            decoration: const InputDecoration(
+              labelText: '회사 소개',
+              hintText: '회사에 대해 간단히 소개해주세요',
+            ),
+            maxLines: 3,
           ),
           const SizedBox(height: 24),
 

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
 import 'package:peoplejob_frontend/data/model/notification_model.dart';
 import 'package:peoplejob_frontend/data/provider/notification_provider.dart';
 import 'package:provider/provider.dart';
 
 class NotificationPage extends StatefulWidget {
-  final String token;
-
-  const NotificationPage({Key? key, required this.token}) : super(key: key);
+  const NotificationPage({Key? key}) : super(key: key);
 
   @override
   State<NotificationPage> createState() => _NotificationPageState();
@@ -40,9 +37,9 @@ class _NotificationPageState extends State<NotificationPage>
 
   void _loadInitialData() {
     final provider = context.read<NotificationProvider>();
-    provider.loadNotifications(token: widget.token, refresh: true);
-    provider.loadUnreadNotifications(widget.token);
-    provider.loadStats(widget.token);
+    provider.loadNotifications(refresh: true);
+    provider.loadUnreadNotifications();
+    provider.loadStats();
   }
 
   void _onScroll() {
@@ -50,7 +47,7 @@ class _NotificationPageState extends State<NotificationPage>
         _scrollController.position.maxScrollExtent) {
       final provider = context.read<NotificationProvider>();
       if (provider.hasMore && !provider.isLoading) {
-        provider.loadNotifications(token: widget.token);
+        provider.loadNotifications();
       }
     }
   }
@@ -147,11 +144,7 @@ class _NotificationPageState extends State<NotificationPage>
         }
 
         return RefreshIndicator(
-          onRefresh:
-              () => provider.loadNotifications(
-                token: widget.token,
-                refresh: true,
-              ),
+          onRefresh: () => provider.loadNotifications(refresh: true),
           child: ListView.builder(
             controller: _scrollController,
             itemCount:
@@ -370,10 +363,7 @@ class _NotificationPageState extends State<NotificationPage>
 
     // 읽지 않은 알림이면 읽음 처리
     if (notification.isUnread) {
-      context.read<NotificationProvider>().markAsRead(
-        widget.token,
-        notification.id,
-      );
+      context.read<NotificationProvider>().markAsRead(notification.id);
     }
 
     // 액션 URL이 있으면 해당 페이지로 이동
@@ -389,13 +379,13 @@ class _NotificationPageState extends State<NotificationPage>
       case 'markAllRead':
         _showConfirmDialog(
           '모든 알림을 읽음 처리하시겠습니까?',
-          () => provider.markAllAsRead(widget.token),
+          () => provider.markAllAsRead(),
         );
         break;
       case 'deleteAll':
         _showConfirmDialog(
           '모든 알림을 삭제하시겠습니까?',
-          () => provider.deleteAllNotifications(widget.token),
+          () => provider.deleteAllNotifications(),
         );
         break;
       case 'refresh':
@@ -415,10 +405,10 @@ class _NotificationPageState extends State<NotificationPage>
 
     switch (action) {
       case 'markRead':
-        provider.markAsRead(widget.token, notification.id);
+        provider.markAsRead(notification.id);
         break;
       case 'delete':
-        provider.deleteNotification(widget.token, notification.id);
+        provider.deleteNotification(notification.id);
         break;
       case 'action':
         if (notification.actionUrl != null) {
@@ -469,7 +459,6 @@ class _NotificationPageState extends State<NotificationPage>
       '선택한 ${_selectedNotifications.length}개의 알림을 삭제하시겠습니까?',
       () {
         context.read<NotificationProvider>().deleteMultipleNotifications(
-          widget.token,
           _selectedNotifications,
         );
         _exitSelectionMode();
@@ -483,7 +472,7 @@ class _NotificationPageState extends State<NotificationPage>
     // (일괄 API 있으면 교체)
     final provider = context.read<NotificationProvider>();
     for (final id in _selectedNotifications) {
-      provider.markAsRead(widget.token, id);
+      provider.markAsRead(id);
     }
     _exitSelectionMode();
   }

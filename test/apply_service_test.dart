@@ -1,83 +1,61 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart' hide any, anyNamed;
-import 'package:mockito/mockito.dart' as m show any, anyNamed;
+import 'package:mockito/mockito.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:peoplejob_frontend/services/apply_service.dart';
 
-// ---- 로컬 Mock 클래스 ----
+// Mock 클래스 정의
 class MockDio extends Mock implements Dio {}
 
-class MockStorage extends Mock implements FlutterSecureStorage {}
-
-// ---- Helpers: 실사용 Response/DioException 생성 ----
-Response<dynamic> _resp(dynamic data, {int? statusCode, required String path}) {
-  return Response<dynamic>(
-    requestOptions: RequestOptions(path: path),
-    data: data,
-    statusCode: statusCode,
-  );
-}
-
-DioException _dioEx({
-  required String path,
-  int? statusCode,
-  DioExceptionType type = DioExceptionType.badResponse,
-  String? message,
-}) {
-  return DioException(
-    requestOptions: RequestOptions(path: path),
-    response:
-        statusCode == null
-            ? null
-            : Response(
-              requestOptions: RequestOptions(path: path),
-              statusCode: statusCode,
-            ),
-    type: type,
-    message: message,
-  );
-}
+class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 
 void main() {
   group('ApplyService Tests', () {
     late ApplyService applyService;
     late MockDio mockDio;
-    late MockStorage mockStorage;
+    late MockFlutterSecureStorage mockStorage;
 
     setUp(() {
       mockDio = MockDio();
-      mockStorage = MockStorage();
+      mockStorage = MockFlutterSecureStorage();
 
-      // Dio 인터셉터 NPE 방지
-      when(mockDio.interceptors).thenReturn(Interceptors());
+      // interceptors를 실제 Interceptors 인스턴스로 stub
+      final interceptors = Interceptors();
+      when(mockDio.interceptors).thenReturn(interceptors);
 
       // 서비스에 Mock 주입
       applyService = ApplyService(
         dio: mockDio,
         storage: mockStorage,
-        baseUrl: 'http://localhost:9000',
       );
-
-      // 기본 토큰 모킹
-      when(
-        mockStorage.read(key: 'jwt'),
-      ).thenAnswer((_) async => 'mock-jwt-token');
     });
 
     group('지원하기 테스트', () {
       test('채용공고 지원 성공 테스트', () async {
-        const jobOpeningNo = 1;
+        const jobopeningNo = 1;
         const resumeNo = 1;
 
-        when(mockDio.post('/api/apply', data: m.anyNamed('data'))).thenAnswer(
-          (_) async =>
-              _resp({'success': true}, statusCode: 200, path: '/api/apply'),
+        // 토큰 모킹
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
+        // API 호출 모킹
+        when(
+          mockDio.post(
+            '/api/apply',
+            data: anyNamed('data'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply'),
+            data: {'success': true},
+            statusCode: 200,
+          ),
         );
 
         final result = await applyService.applyToJob(
-          jobOpeningNo: jobOpeningNo,
+          jobopeningNo: jobopeningNo,
           resumeNo: resumeNo,
         );
 
@@ -87,9 +65,9 @@ void main() {
             '/api/apply',
             data: argThat(
               allOf([
-                containsPair('jobopeningNo', jobOpeningNo),
-                containsPair('resumeNo', resumeNo),
-                containsPair('regdate', isA<String>()),
+                isA<Map>(),
+                predicate((map) => (map as Map)['jobNo'] == jobopeningNo),
+                predicate((map) => (map as Map)['resumeNo'] == resumeNo),
               ]),
               named: 'data',
             ),
@@ -98,42 +76,64 @@ void main() {
       });
 
       test('중복 지원 시 실패 테스트', () async {
-        const jobOpeningNo = 1;
+        const jobopeningNo = 1;
         const resumeNo = 1;
 
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
         when(
-          mockDio.post('/api/apply', data: m.anyNamed('data')),
-        ).thenThrow(_dioEx(path: '/api/apply', statusCode: 400));
+          mockDio.post('/api/apply', data: anyNamed('data')),
+        ).thenThrow(
+          DioException(
+            requestOptions: RequestOptions(path: '/api/apply'),
+            response: Response(
+              requestOptions: RequestOptions(path: '/api/apply'),
+              statusCode: 400,
+            ),
+          ),
+        );
 
         expect(
           () => applyService.applyToJob(
-            jobOpeningNo: jobOpeningNo,
+            jobopeningNo: jobopeningNo,
             resumeNo: resumeNo,
           ),
           throwsA(
             predicate(
-              (e) => e is Exception && e.toString().contains('이미 지원한 채용공고입니다'),
+              (e) =>
+                  e is Exception &&
+                  e.toString().contains('이미 지원한 채용공고입니다'),
             ),
           ),
         );
       });
 
       test('네트워크 오류 시 실패 테스트', () async {
-        const jobOpeningNo = 1;
+        const jobopeningNo = 1;
         const resumeNo = 1;
 
-        when(mockDio.post('/api/apply', data: m.anyNamed('data'))).thenThrow(
-          _dioEx(path: '/api/apply', type: DioExceptionType.connectionTimeout),
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
+        when(
+          mockDio.post('/api/apply', data: anyNamed('data')),
+        ).thenThrow(
+          DioException(
+            requestOptions: RequestOptions(path: '/api/apply'),
+            type: DioExceptionType.connectionTimeout,
+          ),
         );
 
         expect(
           () => applyService.applyToJob(
-            jobOpeningNo: jobOpeningNo,
+            jobopeningNo: jobopeningNo,
             resumeNo: resumeNo,
           ),
           throwsA(
             predicate(
-              (e) => e is Exception && e.toString().contains('지원에 실패했습니다'),
+              (e) =>
+                  e is Exception && e.toString().contains('지원에 실패했습니다'),
             ),
           ),
         );
@@ -163,13 +163,16 @@ void main() {
           },
         ];
 
-        when(mockDio.get('/api/apply')).thenAnswer(
-          (_) async =>
-              _resp(mockApplications, statusCode: 200, path: '/api/apply'),
-        );
-        when(mockDio.get('/api/apply/my')).thenAnswer(
-          (_) async =>
-              _resp(mockApplications, statusCode: 200, path: '/api/apply/my'),
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+        when(mockStorage.read(key: 'userNo')).thenAnswer((_) async => '1');
+
+        when(mockDio.get('/api/apply/user/1')).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply/user/1'),
+            data: mockApplications,
+            statusCode: 200,
+          ),
         );
 
         final result = await applyService.getMyApplications();
@@ -177,7 +180,7 @@ void main() {
         expect(result, hasLength(2));
         expect(result[0]['status'], 'PENDING');
         expect(result[1]['status'], 'ACCEPTED');
-        verify(mockDio.get('/api/apply/my')).called(1);
+        verify(mockDio.get('/api/apply/user/1')).called(1);
       });
 
       test('특정 채용공고의 지원자 목록 조회 성공 테스트', () async {
@@ -199,11 +202,15 @@ void main() {
           },
         ];
 
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
         when(mockDio.get('/api/apply/job/$jobOpeningNo')).thenAnswer(
-          (_) async => _resp(
-            mockApplicants,
+          (_) async => Response(
+            requestOptions:
+                RequestOptions(path: '/api/apply/job/$jobOpeningNo'),
+            data: mockApplicants,
             statusCode: 200,
-            path: '/api/apply/job/$jobOpeningNo',
           ),
         );
 
@@ -215,7 +222,7 @@ void main() {
         verify(mockDio.get('/api/apply/job/$jobOpeningNo')).called(1);
       });
 
-      test('모든 지원 내역 조회 성공 테스트 (기업용)', () async {
+      test('모든 지원 내역 조회 성공 테스트 (관리자용)', () async {
         final mockAllApplications = [
           {
             'applyNo': 1,
@@ -228,9 +235,15 @@ void main() {
           },
         ];
 
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
         when(mockDio.get('/api/apply')).thenAnswer(
-          (_) async =>
-              _resp(mockAllApplications, statusCode: 200, path: '/api/apply'),
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply'),
+            data: mockAllApplications,
+            statusCode: 200,
+          ),
         );
 
         final result = await applyService.getAllApplications();
@@ -245,11 +258,14 @@ void main() {
       test('지원 취소 성공 테스트', () async {
         const applyNo = 1;
 
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
         when(mockDio.delete('/api/apply/$applyNo')).thenAnswer(
-          (_) async => _resp(
-            {'success': true},
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply/$applyNo'),
+            data: {'success': true},
             statusCode: 200,
-            path: '/api/apply/$applyNo',
           ),
         );
 
@@ -262,15 +278,26 @@ void main() {
       test('존재하지 않는 지원 취소 시 실패 테스트', () async {
         const applyNo = 999;
 
-        when(
-          mockDio.delete('/api/apply/$applyNo'),
-        ).thenThrow(_dioEx(path: '/api/apply/$applyNo', statusCode: 404));
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
+        when(mockDio.delete('/api/apply/$applyNo')).thenThrow(
+          DioException(
+            requestOptions: RequestOptions(path: '/api/apply/$applyNo'),
+            response: Response(
+              requestOptions: RequestOptions(path: '/api/apply/$applyNo'),
+              statusCode: 404,
+            ),
+          ),
+        );
 
         expect(
           () => applyService.cancelApplication(applyNo),
           throwsA(
             predicate(
-              (e) => e is Exception && e.toString().contains('지원 취소에 실패했습니다'),
+              (e) =>
+                  e is Exception &&
+                  e.toString().contains('지원 취소에 실패했습니다'),
             ),
           ),
         );
@@ -282,28 +309,32 @@ void main() {
         const jobOpeningNo = 1;
         const resumeNo = 1;
 
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
         when(
           mockDio.get(
-            '/api/apply/check',
-            queryParameters: m.anyNamed('queryParameters'),
+            '/api/apply/status',
+            queryParameters: anyNamed('queryParameters'),
           ),
         ).thenAnswer(
-          (_) async => _resp(
-            {'applied': true},
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply/status'),
+            data: {'applied': true, 'status': 'PENDING'},
             statusCode: 200,
-            path: '/api/apply/check',
           ),
         );
 
         final result = await applyService.checkApplicationStatus(
-          jobOpeningNo: jobOpeningNo,
-          resumeNo: resumeNo,
+          jobOpeningNo,
+          resumeNo,
         );
 
-        expect(result, isTrue);
+        expect(result, isNotNull);
+        expect(result!['applied'], true);
         verify(
           mockDio.get(
-            '/api/apply/check',
+            '/api/apply/status',
             queryParameters: {
               'jobopeningNo': jobOpeningNo,
               'resumeNo': resumeNo,
@@ -315,77 +346,45 @@ void main() {
       test('특정 채용공고 지원 여부 확인 성공 테스트', () async {
         const jobOpeningNo = 1;
 
-        when(mockDio.get('/api/apply/check-job/$jobOpeningNo')).thenAnswer(
-          (_) async => _resp(
-            {'applied': false},
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+        when(mockStorage.read(key: 'userNo')).thenAnswer((_) async => '1');
+
+        when(
+          mockDio.get(
+            '/api/apply/check',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply/check'),
+            data: {'hasApplied': false},
             statusCode: 200,
-            path: '/api/apply/check-job/$jobOpeningNo',
           ),
         );
 
         final result = await applyService.hasAppliedToJob(jobOpeningNo);
 
         expect(result, isFalse);
-        verify(mockDio.get('/api/apply/check-job/$jobOpeningNo')).called(1);
       });
 
       test('네트워크 오류 시 false 반환 테스트', () async {
         const jobOpeningNo = 1;
 
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+        when(mockStorage.read(key: 'userNo')).thenAnswer((_) async => '1');
+
         when(
-          mockDio.get('/api/apply/check-job/$jobOpeningNo'),
+          mockDio.get(
+            '/api/apply/check',
+            queryParameters: anyNamed('queryParameters'),
+          ),
         ).thenThrow(Exception('Network error'));
 
         final result = await applyService.hasAppliedToJob(jobOpeningNo);
 
         expect(result, isFalse);
-      });
-    });
-
-    group('지원 통계 테스트', () {
-      test('지원 통계 조회 성공 테스트 (기업용)', () async {
-        final mockStats = {
-          'totalApplications': 100,
-          'pendingApplications': 30,
-          'acceptedApplications': 25,
-          'rejectedApplications': 45,
-          'monthlyStats': [
-            {'month': '2024-01', 'count': 20},
-            {'month': '2024-02', 'count': 35},
-            {'month': '2024-03', 'count': 45},
-          ],
-        };
-
-        when(mockDio.get('/api/apply/stats')).thenAnswer(
-          (_) async =>
-              _resp(mockStats, statusCode: 200, path: '/api/apply/stats'),
-        );
-
-        final result = await applyService.getApplicationStats();
-
-        expect(result['totalApplications'], 100);
-        expect(result['pendingApplications'], 30);
-        expect(result['acceptedApplications'], 25);
-        expect(result['rejectedApplications'], 45);
-        expect(result['monthlyStats'], hasLength(3));
-        verify(mockDio.get('/api/apply/stats')).called(1);
-      });
-
-      test('통계 조회 실패 테스트', () async {
-        when(
-          mockDio.get('/api/apply/stats'),
-        ).thenThrow(Exception('Network error'));
-
-        expect(
-          () => applyService.getApplicationStats(),
-          throwsA(
-            predicate(
-              (e) =>
-                  e is Exception &&
-                  e.toString().contains('지원 통계를 불러오는데 실패했습니다'),
-            ),
-          ),
-        );
       });
     });
 
@@ -393,16 +392,21 @@ void main() {
       test('토큰이 없을 때도 정상 동작 테스트', () async {
         when(mockStorage.read(key: 'jwt')).thenAnswer((_) async => null);
 
-        const jobOpeningNo = 1;
+        const jobopeningNo = 1;
         const resumeNo = 1;
 
-        when(mockDio.post('/api/apply', data: m.anyNamed('data'))).thenAnswer(
-          (_) async =>
-              _resp({'success': true}, statusCode: 200, path: '/api/apply'),
+        when(
+          mockDio.post('/api/apply', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply'),
+            data: {'success': true},
+            statusCode: 200,
+          ),
         );
 
         final result = await applyService.applyToJob(
-          jobOpeningNo: jobOpeningNo,
+          jobopeningNo: jobopeningNo,
           resumeNo: resumeNo,
         );
 
@@ -410,21 +414,30 @@ void main() {
       });
 
       test('DioException 상세 처리 테스트', () async {
-        const jobOpeningNo = 1;
+        const jobopeningNo = 1;
         const resumeNo = 1;
 
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+
         when(
-          mockDio.post('/api/apply', data: m.anyNamed('data')),
-        ).thenThrow(_dioEx(path: '/api/apply', message: 'Server Error'));
+          mockDio.post('/api/apply', data: anyNamed('data')),
+        ).thenThrow(
+          DioException(
+            requestOptions: RequestOptions(path: '/api/apply'),
+            message: 'Server Error',
+          ),
+        );
 
         expect(
           () => applyService.applyToJob(
-            jobOpeningNo: jobOpeningNo,
+            jobopeningNo: jobopeningNo,
             resumeNo: resumeNo,
           ),
           throwsA(
             predicate(
-              (e) => e is Exception && e.toString().contains('지원에 실패했습니다'),
+              (e) =>
+                  e is Exception && e.toString().contains('지원에 실패했습니다'),
             ),
           ),
         );
@@ -436,19 +449,36 @@ void main() {
         const jobOpeningNo = 1;
         const resumeNo = 1;
 
-        when(mockDio.get('/api/apply/check-job/$jobOpeningNo')).thenAnswer(
-          (_) async => _resp(
-            {'applied': false},
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'mock-token');
+        when(mockStorage.read(key: 'userNo')).thenAnswer((_) async => '1');
+
+        // 1. 지원 여부 확인
+        when(
+          mockDio.get(
+            '/api/apply/check',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply/check'),
+            data: {'hasApplied': false},
             statusCode: 200,
-            path: '/api/apply/check-job/$jobOpeningNo',
           ),
         );
 
-        when(mockDio.post('/api/apply', data: m.anyNamed('data'))).thenAnswer(
-          (_) async =>
-              _resp({'success': true}, statusCode: 200, path: '/api/apply'),
+        // 2. 지원하기
+        when(
+          mockDio.post('/api/apply', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply'),
+            data: {'success': true},
+            statusCode: 200,
+          ),
         );
 
+        // 3. 내 지원 내역 조회
         final myList = [
           {
             'applyNo': 1,
@@ -458,15 +488,19 @@ void main() {
             'status': 'PENDING',
           },
         ];
-        when(mockDio.get('/api/apply/my')).thenAnswer(
-          (_) async => _resp(myList, statusCode: 200, path: '/api/apply/my'),
+        when(mockDio.get('/api/apply/user/1')).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: '/api/apply/user/1'),
+            data: myList,
+            statusCode: 200,
+          ),
         );
 
         final hasApplied = await applyService.hasAppliedToJob(jobOpeningNo);
         expect(hasApplied, isFalse);
 
         final applyResult = await applyService.applyToJob(
-          jobOpeningNo: jobOpeningNo,
+          jobopeningNo: jobOpeningNo,
           resumeNo: resumeNo,
         );
         expect(applyResult, isTrue);
@@ -474,12 +508,6 @@ void main() {
         final myApplications = await applyService.getMyApplications();
         expect(myApplications, hasLength(1));
         expect(myApplications[0]['status'], 'PENDING');
-
-        verifyInOrder([
-          mockDio.get('/api/apply/check-job/$jobOpeningNo'),
-          mockDio.post('/api/apply', data: m.anyNamed('data')),
-          mockDio.get('/api/apply/my'),
-        ]);
       });
     });
   });

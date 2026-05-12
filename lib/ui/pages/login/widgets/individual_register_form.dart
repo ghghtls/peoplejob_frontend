@@ -165,25 +165,57 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
     return Form(
       key: _formKey,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 프로필 이미지 (선택)
-          GestureDetector(
-            onTap: () async {
-              final picked = await ImagePicker().pickImage(
-                source: ImageSource.gallery,
-              );
-              if (picked != null) {
-                ref.read(profileImageProvider.notifier).state = picked;
-              }
-            },
-            child: CircleAvatar(
-              radius: 40,
-              backgroundImage:
-                  image != null ? FileImage(File(image.path)) : null,
-              child: image == null ? const Icon(Icons.add_a_photo) : null,
+          Center(
+            child: GestureDetector(
+              onTap: () async {
+                final picked = await ImagePicker().pickImage(
+                  source: ImageSource.gallery,
+                );
+                if (picked != null) {
+                  ref.read(profileImageProvider.notifier).state = picked;
+                }
+              },
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFF2F2F7),
+                  border: Border.all(
+                    color: const Color(0xFF007AFF).withValues(alpha: 0.2),
+                    width: 2,
+                  ),
+                ),
+                child: image != null
+                    ? ClipOval(
+                        child: Image.file(
+                          File(image.path),
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.add_a_photo_outlined,
+                        size: 32,
+                        color: Color(0xFF007AFF),
+                      ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          const Center(
+            child: Text(
+              '프로필 사진 (선택)',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF8E8E93),
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
 
           // 아이디
           TextFormField(
@@ -202,6 +234,7 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
 
           // 비밀번호
           TextFormField(
@@ -221,6 +254,7 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
 
           // 비밀번호 확인
           TextFormField(
@@ -234,6 +268,7 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
 
           // 이름
           TextFormField(
@@ -246,6 +281,7 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
 
           // 이메일
           TextFormField(
@@ -267,6 +303,7 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
 
           // 전화번호
           TextFormField(
@@ -277,6 +314,7 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
             ),
             keyboardType: TextInputType.phone,
           ),
+          const SizedBox(height: 16),
 
           // 우편번호
           Row(
@@ -296,10 +334,19 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
                     context,
                   ).showSnackBar(const SnackBar(content: Text('주소 검색 기능 준비중')));
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF007AFF),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 child: const Text('주소검색'),
               ),
             ],
           ),
+          const SizedBox(height: 16),
 
           // 주소
           TextFormField(
@@ -307,6 +354,7 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
             decoration: const InputDecoration(labelText: '주소'),
             readOnly: true,
           ),
+          const SizedBox(height: 16),
 
           // 상세주소
           TextFormField(
@@ -314,21 +362,40 @@ class _FormState extends ConsumerState<IndividualRegisterForm> {
             decoration: const InputDecoration(labelText: '상세주소'),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
           // 가입 버튼
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 50,
             child: ElevatedButton(
               onPressed: isLoading ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
+                backgroundColor: const Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFE5E5EA),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child:
-                  isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('가입하기', style: TextStyle(fontSize: 16)),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      '가입하기',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
             ),
           ),
         ],

@@ -97,37 +97,112 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool isPrimary = false,
+    bool isDestructive = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isDestructive
+              ? const Color(0xFFFF3B30)
+              : isPrimary
+                  ? const Color(0xFF007AFF)
+                  : const Color(0xFF8E8E93),
+          size: 22,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w400,
+            letterSpacing: -0.4,
+            color: isDestructive ? const Color(0xFFFF3B30) : const Color(0xFF000000),
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: const Color(0xFFC7C7CC),
+          size: 20,
+        ),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickMenuCard({
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Icon(icon, size: 32, color: Colors.blue[600]),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 24,
+                    color: const Color(0xFF007AFF),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF8E8E93),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -138,107 +213,180 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: Drawer(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-          children: [
-            // 로그인 상태에 따른 헤더
-            if (_isLoggedIn) ...[
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Theme.of(context).primaryColor,
-                child: Text(
-                  _userName?.substring(0, 1) ?? 'U',
-                  style: const TextStyle(color: Colors.white, fontSize: 24),
+        backgroundColor: const Color(0xFFF2F2F7),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // 헤더
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    if (_isLoggedIn) ...[
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF007AFF), Color(0xFF5AC8FA)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _userName?.substring(0, 1) ?? 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '$_userName님',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2F2F7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _userType == 'company' ? '기업회원' : '개인회원',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF8E8E93),
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      const Icon(
+                        Icons.person_outline_rounded,
+                        size: 48,
+                        color: Color(0xFF007AFF),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '환영합니다',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                '$_userName님',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              // 메뉴 리스트
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: [
+                    if (_isLoggedIn) ...[
+                      _buildDrawerItem(
+                        icon: Icons.person_outline,
+                        title: '마이페이지',
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (_userType == 'company') {
+                            Navigator.pushNamed(context, '/companymypage');
+                          } else {
+                            Navigator.pushNamed(context, '/mypage');
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ] else ...[
+                      _buildDrawerItem(
+                        icon: Icons.login_rounded,
+                        title: '로그인',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/login');
+                        },
+                        isPrimary: true,
+                      ),
+                      _buildDrawerItem(
+                        icon: Icons.person_add_outlined,
+                        title: '회원가입',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/register');
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    _buildDrawerItem(
+                      icon: Icons.article_outlined,
+                      title: '게시판',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/board');
+                      },
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.description_outlined,
+                      title: '이력서',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/resume');
+                      },
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.work_outline,
+                      title: '채용공고',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/job-list');
+                      },
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.folder_outlined,
+                      title: '자료실',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/resources/list');
+                      },
+                    ),
+                    if (_isLoggedIn) ...[
+                      const SizedBox(height: 8),
+                      _buildDrawerItem(
+                        icon: Icons.logout_rounded,
+                        title: '로그아웃',
+                        onTap: () async {
+                          final navigator = Navigator.of(context);
+                          await _authService.logout();
+                          if (mounted) {
+                            navigator.pushReplacementNamed('/');
+                          }
+                        },
+                        isDestructive: true,
+                      ),
+                    ],
+                  ],
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _userType == 'company' ? '기업회원' : '개인회원',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              const Divider(),
-            ] else ...[
-              const Text(
-                "🔗 바로가기",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
-            const SizedBox(height: 16),
-
-            // 로그인/로그아웃 버튼
-            if (_isLoggedIn) ...[
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await _authService.logout();
-                  Navigator.pushReplacementNamed(context, '/');
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text('로그아웃'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[400],
-                ),
-              ),
-            ] else ...[
-              ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, '/login'),
-                child: const Text('로그인'),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, '/register'),
-                child: const Text('회원가입'),
-              ),
-            ],
-            const SizedBox(height: 12),
-
-            // 마이페이지 (로그인 시에만 표시)
-            if (_isLoggedIn) ...[
-              ElevatedButton(
-                onPressed: () {
-                  if (_userType == 'company') {
-                    Navigator.pushNamed(context, '/companymypage');
-                  } else {
-                    Navigator.pushNamed(context, '/mypage');
-                  }
-                },
-                child: const Text('마이페이지'),
-              ),
-              const SizedBox(height: 12),
-            ],
-
-            // 공통 메뉴
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/board'),
-              child: const Text('📋 게시판'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/resume'),
-              child: const Text('📄 이력서 보기'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/job-list'),
-              child: const Text('📢 채용공고 보기'),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.folder),
-              title: const Text('자료실'),
-              onTap: () => Navigator.pushNamed(context, '/resources/list'),
-            ),
-          ],
+          ),
         ),
       ),
       body: CustomScrollView(
@@ -247,56 +395,134 @@ class _HomePageState extends State<HomePage> {
             pinned: true,
             floating: false,
             snap: false,
-            expandedHeight: 80,
-            title: const Text('PeopleJob'),
+            expandedHeight: 56,
+            collapsedHeight: 56,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            automaticallyImplyLeading: true,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(
+                  Icons.menu_rounded,
+                  color: Color(0xFF007AFF),
+                  size: 28,
+                ),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                tooltip: '메뉴',
+              ),
+            ),
+            title: const Text(
+              '피플잡',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.4,
+                color: Color(0xFF007AFF),
+              ),
+            ),
+            centerTitle: false,
             actions: [
               // 로그인 상태 표시
               if (_isLoggedIn) ...[
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Chip(
-                      label: Text(
-                        '$_userName님',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      backgroundColor: Colors.white,
-                      avatar: Icon(
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F2F7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
                         _userType == 'company' ? Icons.business : Icons.person,
                         size: 16,
+                        color: const Color(0xFF007AFF),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_userName님',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF000000),
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  tooltip: '로그아웃',
+                  color: const Color(0xFF8E8E93),
+                  onPressed: () async {
+                    final navigator = Navigator.of(context);
+                    await _authService.logout();
+                    if (mounted) {
+                      navigator.pushReplacementNamed('/');
+                    }
+                  },
+                ),
+              ] else ...[
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF007AFF),
+                      side: const BorderSide(color: Color(0xFF007AFF), width: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text(
+                      '로그인',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
                       ),
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  tooltip: '로그아웃',
-                  onPressed: () async {
-                    await _authService.logout();
-                    Navigator.pushReplacementNamed(context, '/');
-                  },
-                ),
-              ] else ...[
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(context, '/login'),
-                  child: const Text(
-                    '로그인',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text(
-                    '회원가입',
-                    style: TextStyle(color: Colors.white),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/register'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF007AFF),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text(
+                      '회원가입',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
                   ),
                 ),
               ],
               IconButton(
-                icon: const Icon(Icons.search),
+                icon: const Icon(Icons.search_rounded),
                 tooltip: '검색',
+                color: const Color(0xFF007AFF),
                 onPressed: () => Navigator.pushNamed(context, '/search'),
               ),
+              const SizedBox(width: 8),
             ],
           ),
           SliverPadding(
