@@ -238,18 +238,13 @@ class TestHelpers {
   }
 
   static void setupMockApplyService(MockApplyService mockApplyService) {
-    // ▶ 현재 ApplyService(대화에서 공유한 버전)에 맞춘 기본 스텁
+    // ▶ ApplyService에 실제 존재하는 메서드만 stub
+    // 파라미터가 없는 메서드만 기본 stub 설정
     when(mockApplyService.getMyApplications()).thenAnswer((_) async => []);
     when(mockApplyService.getAllApplications()).thenAnswer((_) async => []);
-    when(mockApplyService.getApplicationStats()).thenAnswer(
-      (_) async => {
-        'totalApplications': 0,
-        'pendingApplications': 0,
-        'acceptedApplications': 0,
-        'rejectedApplications': 0,
-        'monthlyStats': const [],
-      },
-    );
+
+    // 파라미터가 있는 메서드는 테스트에서 직접 설정하세요
+    // 예: when(mockApplyService.getApplicationsByResume(1)).thenAnswer((_) async => []);
   }
 
   static void setupMockNoticeService(MockNoticeService mockNoticeService) {
