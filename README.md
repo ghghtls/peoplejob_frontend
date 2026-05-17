@@ -287,7 +287,6 @@
 | 로컬 보안 저장소 | flutter_secure_storage | 9.0.0 |
 | 로컬 설정 저장소 | shared_preferences | 2.2.2 |
 | 로컬 DB | Hive + hive_flutter | 2.2.3 / 1.1.0 |
-| 환경 변수 | flutter_dotenv | 5.2.1 |
 
 ### UI / UX
 
@@ -747,9 +746,7 @@ buildCommonAppBar(
 
 ## API 연동
 
-### 환경 분기
-
-`flutter_dotenv`로 환경 변수를 관리하며 development / staging / production 세 가지 환경을 분리합니다. API 기본 URL은 `.env` 파일로 주입합니다.
+환경별 API 엔드포인트는 `flutter_dotenv`를 사용해 `.env` 파일로 분리 관리합니다.
 
 ### API 설정값
 
@@ -910,10 +907,6 @@ GitHub Actions 워크플로우(`.github/workflows/`)로 PR 시 자동 빌드 및
 git clone <repository-url>
 cd peoplejob_frontend
 
-# 환경 변수 설정
-cp assets/.env.example assets/.env
-# .env 파일에 API_BASE_URL 및 Firebase 키 설정
-
 # 의존성 설치
 flutter pub get
 
@@ -921,4 +914,4 @@ flutter pub get
 flutter run
 ```
 
-> **참고:** `.env` 파일과 Firebase 설정(`google-services.json`)은 저장소에 포함되지 않습니다. 별도 설정이 필요합니다.
+> **참고:** Firebase 설정(`google-services.json`)은 저장소에 포함되지 않습니다. 별도 설정이 필요합니다.
