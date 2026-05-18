@@ -42,7 +42,7 @@ class _ApplyDialogState extends State<ApplyDialog> {
 
     try {
       final userInfo = await _authService.getUserInfo();
-      final userNo = int.tryParse(userInfo['userid'] ?? '0');
+      final userNo = int.tryParse(userInfo['userNo'] ?? '0');
 
       if (userNo != null && userNo > 0) {
         final resumes = await _resumeService.getUserResumes(userNo);
