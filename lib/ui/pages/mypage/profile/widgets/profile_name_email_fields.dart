@@ -43,18 +43,8 @@ class ProfileNameEmailFieldsState
     super.initState();
     _initializeControllers();
 
-    // 프로필 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(profileProvider.notifier).loadProfile();
-    });
-
-    // 상태가 바뀔 때만 컨트롤러 채우기
-    ref.listen(profileProvider, (prev, next) {
-      final profile = next.userProfile;
-      if (profile != null && !_filledOnce) {
-        _updateControllers(profile);
-        _filledOnce = true;
-      }
     });
   }
 
@@ -102,6 +92,15 @@ class ProfileNameEmailFieldsState
 
   @override
   Widget build(BuildContext context) {
+    // ref.listen은 build() 안에서만 호출 가능 (Riverpod 2.x 규칙)
+    ref.listen(profileProvider, (prev, next) {
+      final profile = next.userProfile;
+      if (profile != null && !_filledOnce) {
+        _updateControllers(profile);
+        _filledOnce = true;
+      }
+    });
+
     final profileState = ref.watch(profileProvider);
 
     return Form(

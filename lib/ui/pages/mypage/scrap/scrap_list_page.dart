@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../services/scrap_service.dart';
-import '../../../../services/auth_service.dart';
+import '../../../widgets/app_bar.dart';
 
 class ScrapListPage extends StatefulWidget {
   const ScrapListPage({super.key});
@@ -11,36 +11,22 @@ class ScrapListPage extends StatefulWidget {
 }
 
 class _ScrapListPageState extends State<ScrapListPage> {
+  static const Color _blue = Color(0xFF0B5FFF);
+  static const Color _label = Color(0xFF0B1220);
+  static const Color _secondary = Color(0xFF8E8E93);
+  static const Color _bg = Color(0xFFF2F2F7);
+  static const Color _red = Color(0xFFE5342F);
+  static const Color _orange = Color(0xFFFF9500);
+
   final ScrapService _scrapService = ScrapService();
-  final AuthService _authService = AuthService();
+  final _searchController = TextEditingController();
   List<dynamic> _scraps = [];
   List<dynamic> _filteredScraps = [];
   bool _isLoading = true;
   String _searchKeyword = '';
   String _selectedJobType = '전체';
-  String _selectedLocation = '전체';
 
   final List<String> _jobTypes = ['전체', '정규직', '계약직', '인턴', '프리랜서', '파트타임'];
-  final List<String> _locations = [
-    '전체',
-    '서울',
-    '경기',
-    '인천',
-    '부산',
-    '대구',
-    '대전',
-    '광주',
-    '울산',
-    '세종',
-    '강원',
-    '충북',
-    '충남',
-    '전북',
-    '전남',
-    '경북',
-    '경남',
-    '제주',
-  ];
 
   @override
   void initState() {
@@ -48,11 +34,14 @@ class _ScrapListPageState extends State<ScrapListPage> {
     _loadScraps();
   }
 
-  Future<void> _loadScraps() async {
-    setState(() {
-      _isLoading = true;
-    });
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
+  Future<void> _loadScraps() async {
+    setState(() => _isLoading = true);
     try {
       final scraps = await _scrapService.getMyScrapList();
       setState(() {
@@ -61,583 +50,411 @@ class _ScrapListPageState extends State<ScrapListPage> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+        );
+      }
     }
   }
 
   void _filterScraps() {
     setState(() {
-      _filteredScraps =
-          _scraps.where((scrap) {
-            final job = scrap['jobopening'];
-            final matchesKeyword =
-                _searchKeyword.isEmpty ||
-                job['title'].toString().toLowerCase().contains(
-                  _searchKeyword.toLowerCase(),
-                ) ||
-                job['content'].toString().toLowerCase().contains(
-                  _searchKeyword.toLowerCase(),
-                );
-
-            final matchesJobType =
-                _selectedJobType == '전체' || job['jobtype'] == _selectedJobType;
-            final matchesLocation =
-                _selectedLocation == '전체' ||
-                job['location'] == _selectedLocation;
-
-            return matchesKeyword && matchesJobType && matchesLocation;
-          }).toList();
+      _filteredScraps = _scraps.where((scrap) {
+        final job = scrap['jobopening'];
+        if (job == null) return false;
+        final matchesKeyword = _searchKeyword.isEmpty ||
+            (job['title'] ?? '').toString().toLowerCase().contains(_searchKeyword.toLowerCase());
+        final matchesType = _selectedJobType == '전체' || job['jobType'] == _selectedJobType;
+        return matchesKeyword && matchesType;
+      }).toList();
     });
   }
 
   String _formatDate(String? dateStr) {
     if (dateStr == null) return '';
     try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('yyyy.MM.dd').format(date);
-    } catch (e) {
+      return DateFormat('yyyy.MM.dd').format(DateTime.parse(dateStr));
+    } catch (_) {
       return dateStr;
     }
   }
 
-  bool _isDeadlinePassed(String? deadlineStr) {
-    if (deadlineStr == null) return false;
+  bool _isExpired(String? d) {
+    if (d == null) return false;
     try {
-      final deadline = DateTime.parse(deadlineStr);
-      return deadline.isBefore(DateTime.now());
-    } catch (e) {
+      return DateTime.parse(d).isBefore(DateTime.now());
+    } catch (_) {
       return false;
     }
   }
 
-  int _getDaysRemaining(String? deadlineStr) {
-    if (deadlineStr == null) return 0;
+  int _daysLeft(String? d) {
+    if (d == null) return -1;
     try {
-      final deadline = DateTime.parse(deadlineStr);
-      final now = DateTime.now();
-      return deadline.difference(now).inDays;
-    } catch (e) {
-      return 0;
+      return DateTime.parse(d).difference(DateTime.now()).inDays;
+    } catch (_) {
+      return -1;
     }
   }
 
-  void _removeScrap(int scrapNo, int jobOpeningNo, String jobTitle) {
+  void _removeScrap(int scrapNo, String jobTitle) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('스크랩 제거'),
-          content: Text('$jobTitle을(를) 스크랩에서 제거하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                try {
-                  await _scrapService.deleteScrapById(scrapNo);
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('스크랩 제거', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: Text('$jobTitle을(를) 스크랩에서 제거하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('취소', style: TextStyle(color: _secondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                await _scrapService.deleteScrapById(scrapNo);
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('스크랩에서 제거되었습니다'),
-                      backgroundColor: Colors.green,
+                    SnackBar(
+                      content: const Text('스크랩에서 제거되었습니다'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   );
                   _loadScraps();
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('제거'),
-            ),
-          ],
-        );
-      },
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+              }
+            },
+            child: const Text('제거', style: TextStyle(color: _red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
-  }
-
-  void _viewJobDetail(int jobOpeningNo) {
-    Navigator.pushNamed(context, '/job-detail', arguments: jobOpeningNo);
   }
 
   void _clearAllScraps() {
     if (_scraps.isEmpty) return;
-
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('전체 스크랩 제거'),
-          content: Text(
-            '모든 스크랩(${_scraps.length}개)을 제거하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('전체 스크랩 제거', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: Text('모든 스크랩(${_scraps.length}개)을 제거하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('취소', style: TextStyle(color: _secondary)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                setState(() {
-                  _isLoading = true;
-                });
-
-                try {
-                  // 모든 스크랩을 하나씩 삭제
-                  for (var scrap in _scraps) {
-                    await _scrapService.deleteScrapById(scrap['scrapNo']);
-                  }
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('모든 스크랩이 제거되었습니다'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  _loadScraps();
-                } catch (e) {
-                  setState(() {
-                    _isLoading = false;
-                  });
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(e.toString())));
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              setState(() => _isLoading = true);
+              try {
+                for (var scrap in _scraps) {
+                  await _scrapService.deleteScrapById(scrap['scrapNo']);
                 }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('전체 제거'),
-            ),
-          ],
-        );
-      },
+                if (mounted) _loadScraps();
+              } catch (e) {
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                }
+              }
+            },
+            child: const Text('전체 제거', style: TextStyle(color: _red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('스크랩 목록'),
-        backgroundColor: Colors.orange[600],
-        foregroundColor: Colors.white,
+      backgroundColor: _bg,
+      appBar: buildCommonAppBar(
+        title: '스크랩 공고',
         actions: [
           if (_scraps.isNotEmpty)
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'clear_all') {
-                  _clearAllScraps();
-                }
-              },
-              itemBuilder:
-                  (BuildContext context) => [
-                    const PopupMenuItem<String>(
-                      value: 'clear_all',
-                      child: Row(
-                        children: [
-                          Icon(Icons.clear_all, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('전체 제거'),
-                        ],
-                      ),
-                    ),
-                  ],
+            TextButton(
+              onPressed: _clearAllScraps,
+              style: TextButton.styleFrom(foregroundColor: _red, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+              child: const Text('전체 삭제', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadScraps),
+          IconButton(
+            onPressed: _loadScraps,
+            icon: const Icon(Icons.refresh_rounded, color: _secondary),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.all(8),
+            ),
+          ),
         ],
       ),
       body: Column(
         children: [
-          // 검색 및 필터 영역
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.orange[50],
-            child: Column(
-              children: [
-                // 검색창
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: '스크랩한 채용공고를 검색하세요',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onChanged: (value) {
-                    _searchKeyword = value;
-                    _filterScraps();
-                  },
-                ),
-                const SizedBox(height: 12),
-                // 필터 영역
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedJobType,
-                        decoration: InputDecoration(
-                          labelText: '고용형태',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        items:
-                            _jobTypes.map((type) {
-                              return DropdownMenuItem(
-                                value: type,
-                                child: Text(type),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedJobType = value!;
-                          });
-                          _filterScraps();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedLocation,
-                        decoration: InputDecoration(
-                          labelText: '지역',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        items:
-                            _locations.map((location) {
-                              return DropdownMenuItem(
-                                value: location,
-                                child: Text(location),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedLocation = value!;
-                          });
-                          _filterScraps();
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // 결과 개수 표시
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Icon(Icons.bookmark, color: Colors.orange[600], size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  '총 ${_filteredScraps.length}개의 스크랩',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.orange[800],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 스크랩 목록
-          Expanded(
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredScraps.isEmpty
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.bookmark_border,
-                            size: 80,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _scraps.isEmpty ? '스크랩한 채용공고가 없습니다' : '검색 결과가 없습니다',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _scraps.isEmpty
-                                ? '관심있는 채용공고를 스크랩해보세요'
-                                : '다른 키워드로 검색해보세요',
-                            style: TextStyle(color: Colors.grey[500]),
-                          ),
-                          if (_scraps.isEmpty) ...[
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.pushNamed(context, '/job-list');
-                              },
-                              icon: const Icon(Icons.search),
-                              label: const Text('채용공고 보기'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange[600],
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    )
-                    : RefreshIndicator(
-                      onRefresh: _loadScraps,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredScraps.length,
-                        itemBuilder: (context, index) {
-                          final scrap = _filteredScraps[index];
-                          final job = scrap['jobopening'];
-                          final isExpired = _isDeadlinePassed(job['deadline']);
-                          final daysRemaining = _getDaysRemaining(
-                            job['deadline'],
-                          );
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => _viewJobDetail(job['jobopeningNo']),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // 제목과 스크랩 제거 버튼
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            job['title'] ?? '',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  isExpired
-                                                      ? Colors.grey
-                                                      : Colors.black87,
-                                              decoration:
-                                                  isExpired
-                                                      ? TextDecoration
-                                                          .lineThrough
-                                                      : null,
-                                            ),
-                                          ),
-                                        ),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (isExpired)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red[100],
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  '마감',
-                                                  style: TextStyle(
-                                                    color: Colors.red[700],
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              )
-                                            else
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color:
-                                                      daysRemaining <= 3
-                                                          ? Colors.red[100]
-                                                          : Colors.green[100],
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  daysRemaining <= 0
-                                                      ? '오늘 마감'
-                                                      : 'D-$daysRemaining',
-                                                  style: TextStyle(
-                                                    color:
-                                                        daysRemaining <= 3
-                                                            ? Colors.red[700]
-                                                            : Colors.green[700],
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                            const SizedBox(width: 8),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.bookmark_remove,
-                                                color: Colors.red,
-                                              ),
-                                              onPressed:
-                                                  () => _removeScrap(
-                                                    scrap['scrapNo'],
-                                                    job['jobopeningNo'],
-                                                    job['title'] ?? '채용공고',
-                                                  ),
-                                              tooltip: '스크랩 제거',
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    // 기본 정보
-                                    Row(
-                                      children: [
-                                        _buildInfoChip(
-                                          Icons.work,
-                                          job['jobtype'] ?? '',
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _buildInfoChip(
-                                          Icons.location_on,
-                                          job['location'] ?? '',
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        _buildInfoChip(
-                                          Icons.school,
-                                          job['education'] ?? '',
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _buildInfoChip(
-                                          Icons.timeline,
-                                          job['career'] ?? '',
-                                        ),
-                                      ],
-                                    ),
-                                    if (job['salary'] != null &&
-                                        job['salary']
-                                            .toString()
-                                            .isNotEmpty) ...[
-                                      const SizedBox(height: 8),
-                                      _buildInfoChip(
-                                        Icons.attach_money,
-                                        job['salary'],
-                                      ),
-                                    ],
-                                    const SizedBox(height: 12),
-                                    // 날짜 정보
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '스크랩일: ${_formatDate(scrap['regdate'])}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        Text(
-                                          '마감일: ${_formatDate(job['deadline'])}',
-                                          style: TextStyle(
-                                            color:
-                                                isExpired
-                                                    ? Colors.red
-                                                    : Colors.grey[600],
-                                            fontSize: 12,
-                                            fontWeight:
-                                                isExpired
-                                                    ? FontWeight.w600
-                                                    : FontWeight.normal,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-          ),
+          _buildSearchBar(),
+          _buildFilterChips(),
+          _buildResultCount(),
+          Expanded(child: _buildList()),
         ],
       ),
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) {
-    if (text.isEmpty) return const SizedBox.shrink();
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: TextField(
+          controller: _searchController,
+          style: const TextStyle(fontSize: 15, color: _label),
+          decoration: InputDecoration(
+            hintText: '스크랩한 채용공고 검색',
+            hintStyle: const TextStyle(color: _secondary, fontSize: 15),
+            prefixIcon: const Icon(Icons.search_rounded, color: _secondary, size: 20),
+            suffixIcon: _searchKeyword.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.cancel_rounded, color: _secondary, size: 18),
+                    onPressed: () {
+                      _searchController.clear();
+                      _searchKeyword = '';
+                      _filterScraps();
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          onChanged: (v) {
+            _searchKeyword = v;
+            _filterScraps();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: SizedBox(
+        height: 34,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _jobTypes.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final item = _jobTypes[i];
+            final selected = item == _selectedJobType;
+            return GestureDetector(
+              onTap: () {
+                setState(() => _selectedJobType = item);
+                _filterScraps();
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: selected ? _orange : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: selected ? 0.0 : 0.05), blurRadius: 4, offset: const Offset(0, 1))],
+                ),
+                child: Text(item,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected ? Colors.white : _secondary,
+                    )),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultCount() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+      child: Row(
+        children: [
+          Text('${_filteredScraps.length}개',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _orange, letterSpacing: -0.3)),
+          const Text('의 스크랩', style: TextStyle(fontSize: 15, color: _secondary, letterSpacing: -0.3)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5));
+
+    if (_filteredScraps.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72, height: 72,
+              decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(20)),
+              child: const Icon(Icons.bookmark_border_rounded, size: 36, color: _secondary),
+            ),
+            const SizedBox(height: 16),
+            Text(_scraps.isEmpty ? '스크랩한 채용공고가 없습니다' : '검색 결과가 없습니다',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _label)),
+            const SizedBox(height: 6),
+            Text(_scraps.isEmpty ? '관심있는 채용공고를 스크랩해보세요' : '다른 키워드로 검색해보세요',
+                style: const TextStyle(fontSize: 14, color: _secondary)),
+            if (_scraps.isEmpty) ...[
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: () => Navigator.pushNamed(context, '/job-list'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _orange, side: const BorderSide(color: _orange, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: const Text('채용공고 보기', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadScraps,
+      color: _blue,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        itemCount: _filteredScraps.length,
+        itemBuilder: (context, i) => _buildCard(_filteredScraps[i]),
+      ),
+    );
+  }
+
+  Widget _buildCard(dynamic scrap) {
+    final job = scrap['jobopening'] as Map?;
+    if (job == null) return const SizedBox.shrink();
+    final expired = _isExpired(job['deadline'] as String?);
+    final days = _daysLeft(job['deadline'] as String?);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 2))],
       ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.pushNamed(context, '/job-detail', arguments: job['jobopeningNo']),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(job['title'] ?? '',
+                          style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700,
+                            color: expired ? _secondary : _label,
+                            decoration: expired ? TextDecoration.lineThrough : null,
+                            letterSpacing: -0.4,
+                          )),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (expired)
+                          _badge('마감', _red.withValues(alpha: 0.12), _red)
+                        else if (days >= 0 && days <= 7)
+                          _badge('D-$days', _orange.withValues(alpha: 0.12), _orange),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () => _removeScrap(scrap['scrapNo'], job['title'] ?? '채용공고'),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: _red.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.bookmark_remove_rounded, color: _red, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6, runSpacing: 6,
+                  children: [
+                    if ((job['jobType'] ?? '').toString().isNotEmpty) _tag(Icons.work_outline_rounded, job['jobType']),
+                    if ((job['location'] ?? '').toString().isNotEmpty) _tag(Icons.location_on_outlined, job['location']),
+                    if ((job['career'] ?? '').toString().isNotEmpty) _tag(Icons.timeline_rounded, job['career']),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: Color(0xFFF2F2F7)),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('스크랩 ${_formatDate(scrap['regdate'])}',
+                        style: const TextStyle(fontSize: 12, color: _secondary, letterSpacing: -0.2)),
+                    Text('마감 ${_formatDate(job['deadline'])}',
+                        style: TextStyle(fontSize: 12, color: expired ? _red : _secondary,
+                            fontWeight: expired ? FontWeight.w600 : FontWeight.w400)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _badge(String text, Color bg, Color fg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+    );
+  }
+
+  Widget _tag(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.orange[700]),
+          Icon(icon, size: 12, color: _secondary),
           const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.orange[700],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text(text, style: const TextStyle(fontSize: 12, color: _secondary)),
         ],
       ),
     );

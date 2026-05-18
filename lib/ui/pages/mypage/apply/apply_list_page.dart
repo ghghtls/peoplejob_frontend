@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../services/apply_service.dart';
 import '../../../../services/auth_service.dart';
+import '../../../widgets/app_bar.dart';
 
 class ApplyListPage extends StatefulWidget {
   const ApplyListPage({super.key});
@@ -11,6 +12,13 @@ class ApplyListPage extends StatefulWidget {
 }
 
 class _ApplyListPageState extends State<ApplyListPage> {
+  static const Color _blue = Color(0xFF0B5FFF);
+  static const Color _label = Color(0xFF0B1220);
+  static const Color _secondary = Color(0xFF8E8E93);
+  static const Color _bg = Color(0xFFF2F2F7);
+  static const Color _red = Color(0xFFE5342F);
+  static const Color _green = Color(0xFF0FA958);
+
   final ApplyService _applyService = ApplyService();
   final AuthService _authService = AuthService();
   List<dynamic> _applications = [];
@@ -25,45 +33,38 @@ class _ApplyListPageState extends State<ApplyListPage> {
 
   Future<void> _loadUserInfo() async {
     final userInfo = await _authService.getUserInfo();
-    setState(() {
-      _userType = userInfo['userType'];
-    });
+    setState(() => _userType = userInfo['userType']);
     _loadApplications();
   }
 
   Future<void> _loadApplications() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
-      List<dynamic> applications;
-
-      if (_userType == 'company') {
-        applications = await _applyService.getAllApplications();
-      } else {
-        applications = await _applyService.getMyApplications();
-      }
-
+      final apps = _userType == 'company'
+          ? await _applyService.getAllApplications()
+          : await _applyService.getMyApplications();
       setState(() {
-        _applications = applications;
+        _applications = apps;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
     }
   }
 
   String _formatDate(String? dateStr) {
     if (dateStr == null) return '';
     try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('yyyy.MM.dd').format(date);
+      return DateFormat('yyyy.MM.dd').format(DateTime.parse(dateStr));
     } catch (e) {
       return dateStr;
     }
@@ -72,377 +73,286 @@ class _ApplyListPageState extends State<ApplyListPage> {
   void _cancelApplication(int applyNo, String jobTitle) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('지원 취소'),
-          content: Text('$jobTitle 지원을 취소하시겠습니까?\n취소된 지원은 복구할 수 없습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('닫기'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                try {
-                  await _applyService.cancelApplication(applyNo);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('지원이 취소되었습니다')));
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('지원 취소', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: Text('$jobTitle 지원을 취소하시겠습니까?\n취소된 지원은 복구할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('닫기', style: TextStyle(color: _secondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                await _applyService.cancelApplication(applyNo);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('지원이 취소되었습니다'),
+                      backgroundColor: _green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
                   _loadApplications();
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('취소'),
-            ),
-          ],
-        );
-      },
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+              }
+            },
+            child: const Text('취소하기', style: TextStyle(color: _red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
-  }
-
-  void _viewResume(int resumeNo) {
-    Navigator.pushNamed(context, '/resume-detail', arguments: resumeNo);
-  }
-
-  void _viewJobDetail(int jobOpeningNo) {
-    Navigator.pushNamed(context, '/job-detail', arguments: jobOpeningNo);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isCompany = _userType == 'company';
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_userType == 'company' ? '지원자 관리' : '지원 내역'),
-        backgroundColor: Colors.purple[600],
-        foregroundColor: Colors.white,
+      backgroundColor: _bg,
+      appBar: buildCommonAppBar(
+        title: isCompany ? '지원자 관리' : '지원 내역',
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
             onPressed: _loadApplications,
+            icon: const Icon(Icons.refresh_rounded, color: _secondary),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.all(8),
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
-          // 통계 정보
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.purple[50],
-            child: Row(
-              children: [
-                Icon(Icons.assessment, color: Colors.purple[600]),
-                const SizedBox(width: 8),
-                Text(
-                  '총 ${_applications.length}건의 ${_userType == 'company' ? '지원' : '지원 내역'}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.purple[800],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 지원 내역 목록
-          Expanded(
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _applications.isEmpty
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _userType == 'company'
-                                ? Icons.people_outline
-                                : Icons.send_outlined,
-                            size: 80,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _userType == 'company'
-                                ? '아직 지원자가 없습니다'
-                                : '지원한 채용공고가 없습니다',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _userType == 'company'
-                                ? '채용공고를 등록하여 지원자를 모집해보세요'
-                                : '관심있는 채용공고에 지원해보세요',
-                            style: TextStyle(color: Colors.grey[500]),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              if (_userType == 'company') {
-                                Navigator.pushNamed(context, '/job-register');
-                              } else {
-                                Navigator.pushNamed(context, '/job-list');
-                              }
-                            },
-                            icon: Icon(
-                              _userType == 'company' ? Icons.add : Icons.search,
-                            ),
-                            label: Text(
-                              _userType == 'company' ? '채용공고 등록' : '채용공고 보기',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.purple[600],
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                    : RefreshIndicator(
-                      onRefresh: _loadApplications,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _applications.length,
-                        itemBuilder: (context, index) {
-                          final application = _applications[index];
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // 헤더 (채용공고 제목 또는 지원자명)
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _userType == 'company'
-                                              ? application['resumeTitle'] ??
-                                                  '이력서 제목 없음'
-                                              : application['jobTitle'] ??
-                                                  '채용공고 제목 없음',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black87,
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.purple[100],
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '지원완료',
-                                          style: TextStyle(
-                                            color: Colors.purple[700],
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-
-                                  // 세부 정보
-                                  if (_userType == 'company') ...[
-                                    // 기업회원용: 지원자 정보
-                                    _buildInfoRow(
-                                      Icons.person,
-                                      '지원자',
-                                      application['applicantName'] ?? '이름 없음',
-                                    ),
-                                    _buildInfoRow(
-                                      Icons.work,
-                                      '채용공고',
-                                      application['jobTitle'] ?? '제목 없음',
-                                    ),
-                                    _buildInfoRow(
-                                      Icons.description,
-                                      '지원 이력서',
-                                      application['resumeTitle'] ?? '제목 없음',
-                                    ),
-                                  ] else ...[
-                                    // 개인회원용: 지원 정보
-                                    _buildInfoRow(
-                                      Icons.work,
-                                      '채용공고',
-                                      application['jobTitle'] ?? '제목 없음',
-                                    ),
-                                    _buildInfoRow(
-                                      Icons.business,
-                                      '회사명',
-                                      application['companyName'] ?? '회사명 없음',
-                                    ),
-                                    _buildInfoRow(
-                                      Icons.description,
-                                      '지원 이력서',
-                                      application['resumeTitle'] ?? '제목 없음',
-                                    ),
-                                  ],
-
-                                  _buildInfoRow(
-                                    Icons.calendar_today,
-                                    '지원일',
-                                    _formatDate(application['regdate']),
-                                  ),
-
-                                  const SizedBox(height: 16),
-
-                                  // 액션 버튼들
-                                  Row(
-                                    children: [
-                                      if (_userType == 'company') ...[
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed:
-                                                () => _viewResume(
-                                                  application['resumeNo'],
-                                                ),
-                                            icon: const Icon(
-                                              Icons.description,
-                                              size: 16,
-                                            ),
-                                            label: const Text('이력서 보기'),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor:
-                                                  Colors.purple[600],
-                                              side: BorderSide(
-                                                color: Colors.purple[600]!,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: ElevatedButton.icon(
-                                            onPressed: () {
-                                              // TODO: 연락하기 기능
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    '연락하기 기능은 준비 중입니다',
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                            icon: const Icon(
-                                              Icons.email,
-                                              size: 16,
-                                            ),
-                                            label: const Text('연락하기'),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.purple[600],
-                                              foregroundColor: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ] else ...[
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed:
-                                                () => _viewJobDetail(
-                                                  application['jobopeningNo'],
-                                                ),
-                                            icon: const Icon(
-                                              Icons.work,
-                                              size: 16,
-                                            ),
-                                            label: const Text('공고 보기'),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor:
-                                                  Colors.purple[600],
-                                              side: BorderSide(
-                                                color: Colors.purple[600]!,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: ElevatedButton.icon(
-                                            onPressed:
-                                                () => _cancelApplication(
-                                                  application['applyNo'],
-                                                  application['jobTitle'] ??
-                                                      '채용공고',
-                                                ),
-                                            icon: const Icon(
-                                              Icons.cancel,
-                                              size: 16,
-                                            ),
-                                            label: const Text('지원 취소'),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red[600],
-                                              foregroundColor: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-          ),
+          _buildStats(isCompany),
+          Expanded(child: _buildList(isCompany)),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildStats(bool isCompany) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.grey[600]),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: TextStyle(color: Colors.grey[600], fontSize: 14),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Row(
+          children: [
+            Icon(isCompany ? Icons.people_rounded : Icons.send_rounded, color: _blue, size: 20),
+            const SizedBox(width: 8),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${_applications.length}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _blue, letterSpacing: -0.3),
+                  ),
+                  TextSpan(
+                    text: isCompany ? '건의 지원' : '건의 지원 내역',
+                    style: const TextStyle(fontSize: 14, color: _secondary, letterSpacing: -0.2),
+                  ),
+                ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildList(bool isCompany) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5));
+    }
+    if (_applications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(20)),
+              child: Icon(isCompany ? Icons.people_outline_rounded : Icons.send_outlined, size: 36, color: _secondary),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isCompany ? '아직 지원자가 없습니다' : '지원한 채용공고가 없습니다',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _label),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isCompany ? '채용공고를 등록하여 지원자를 모집해보세요' : '관심있는 채용공고에 지원해보세요',
+              style: const TextStyle(fontSize: 14, color: _secondary),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton(
+              onPressed: () => Navigator.pushNamed(context, isCompany ? '/job-form' : '/job-list'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _blue,
+                side: const BorderSide(color: _blue, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text(isCompany ? '채용공고 등록' : '채용공고 보기',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadApplications,
+      color: _blue,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        itemCount: _applications.length,
+        itemBuilder: (context, index) => _buildCard(_applications[index], isCompany),
+      ),
+    );
+  }
+
+  Widget _buildCard(dynamic app, bool isCompany) {
+    final title = isCompany
+        ? (app['resumeTitle'] ?? '이력서 제목 없음')
+        : (app['jobTitle'] ?? '채용공고 제목 없음');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 2))],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(title,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _label, letterSpacing: -0.4)),
+                ),
+                const SizedBox(width: 8),
+                _statusBadge(app['applyStatus']),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (isCompany) ...[
+              _infoRow(Icons.person_outline_rounded, '지원자', app['applicantName'] ?? '이름 없음'),
+              _infoRow(Icons.work_outline_rounded, '채용공고', app['jobTitle'] ?? '제목 없음'),
+            ] else ...[
+              _infoRow(Icons.business_rounded, '회사명', app['companyName'] ?? '회사명 없음'),
+              _infoRow(Icons.description_outlined, '지원 이력서', app['resumeTitle'] ?? '제목 없음'),
+            ],
+            _infoRow(Icons.calendar_today_rounded, '지원일', _formatDate(app['regdate'])),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFF2F2F7)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (isCompany) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pushNamed(context, '/resume-detail', arguments: app['resumeNo']),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _blue,
+                        side: const BorderSide(color: Color(0xFFE5E5EA)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text('이력서 보기', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ] else ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pushNamed(context, '/job-detail', arguments: app['jobNo']),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _blue,
+                        side: const BorderSide(color: Color(0xFFE5E5EA)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text('공고 보기', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _cancelApplication(app['applyNo'], app['jobTitle'] ?? '채용공고'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _red.withValues(alpha: 0.1),
+                        foregroundColor: _red,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text('지원 취소', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusBadge(dynamic status) {
+    final s = (status as String? ?? '').toUpperCase();
+    final Color bg;
+    final Color fg;
+    final String label;
+    switch (s) {
+      case 'ACCEPTED':
+        bg = _green; fg = _green; label = '합격';
+      case 'REJECTED':
+        bg = _red; fg = _red; label = '불합격';
+      case 'REVIEWING':
+      case 'PENDING':
+        bg = const Color(0xFFFF9500); fg = const Color(0xFFFF9500); label = '검토중';
+      default:
+        bg = _blue; fg = _blue; label = '지원완료';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: _secondary),
+          const SizedBox(width: 8),
+          Text('$label  ', style: const TextStyle(fontSize: 13, color: _secondary, letterSpacing: -0.2)),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(fontSize: 13, color: _label, fontWeight: FontWeight.w500, letterSpacing: -0.2),
+                overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
