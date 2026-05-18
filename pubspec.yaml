@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # 네트워킹 / 스토리지
   dio: ^5.8.0+1
@@ -26,7 +28,6 @@ dependencies:
   image_picker: ^1.1.2
 
   # 아키텍처/라우팅
-  provider: ^6.1.2
   flutter_riverpod: ^2.6.1
   go_router: ^15.1.0
 
@@ -83,3 +84,18 @@ flutter:
     - .env
     - test/fixtures/
     - test/golden_files/
+
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard/Pretendard-Regular.otf
+          weight: 400
+        - asset: assets/fonts/Pretendard/Pretendard-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Pretendard/Pretendard-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Pretendard/Pretendard-Bold.otf
+          weight: 700
+    - family: Ownglyph
+      fonts:
+        - asset: assets/fonts/Ownglyph-GeungJeong.ttf
