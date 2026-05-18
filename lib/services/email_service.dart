@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'config/api_config.dart';
 
 class EmailService {
-  static const String baseUrl = 'http://localhost:9000/api/email';
+  static String get baseUrl => '${dotenv.env['API_URL'] ?? ApiConfig.apiUrl}/api/email';
 
   /// 테스트 이메일 발송
   static Future<Map<String, dynamic>> sendTestEmail({

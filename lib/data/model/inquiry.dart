@@ -1,70 +1,54 @@
 class Inquiry {
   final int? inquiryNo;
-  final int? userNo;
+  final String? writer;
+  final String? email;
+  final String? category;
   final String title;
   final String content;
   final String? regdate;
   final String? answer;
   final String? answerDate;
-  final String? status;
+  final bool isAnswered;
 
   Inquiry({
     this.inquiryNo,
-    this.userNo,
+    this.writer,
+    this.email,
+    this.category,
     required this.title,
     required this.content,
     this.regdate,
     this.answer,
     this.answerDate,
-    this.status,
+    this.isAnswered = false,
   });
 
   factory Inquiry.fromJson(Map<String, dynamic> json) {
+    final answered = json['isAnswered'];
     return Inquiry(
-      inquiryNo: _parseToInt(json['inquiryNo']),
-      userNo: _parseToInt(json['userNo']),
+      inquiryNo: _toInt(json['inquiryNo']),
+      writer: json['writer']?.toString(),
+      email: json['email']?.toString(),
+      category: json['category']?.toString(),
       title: json['title']?.toString() ?? '',
       content: json['content']?.toString() ?? '',
       regdate: json['regdate']?.toString(),
       answer: json['answer']?.toString(),
       answerDate: json['answerDate']?.toString(),
-      status: json['status']?.toString() ?? 'WAIT',
+      isAnswered: answered == true || answered == 1 || answered.toString() == 'true',
     );
   }
 
-  static int? _parseToInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    if (value is double) return value.toInt();
+  static int? _toInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v);
     return null;
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'inquiryNo': inquiryNo,
-      'userNo': userNo,
-      'title': title,
-      'content': content,
-      'regdate': regdate,
-      'answer': answer,
-      'answerDate': answerDate,
-      'status': status,
-    };
-  }
+  // userNo 접근자 — 기존 코드 호환용 (writer 문자열을 그대로 반환)
+  String? get userNo => writer;
 
-  // 상태별 색상 반환
-  String get statusText {
-    switch (status) {
-      case 'WAIT':
-        return '답변 대기';
-      case 'ANSWERED':
-        return '답변 완료';
-      default:
-        return '알 수 없음';
-    }
-  }
-
-  // 상태별 컬러 반환
-  bool get isAnswered => status == 'ANSWERED';
+  String get statusText => isAnswered ? '답변 완료' : '답변 대기';
 }

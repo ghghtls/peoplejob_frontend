@@ -39,10 +39,15 @@ class ApplyService {
     required int resumeNo,
   }) async {
     try {
+      final userNo = await _getUserNo();
+      if (userNo == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
       await _dio.post(
         '/api/apply',
         data: {
-          'jobNo': jobopeningNo,  // 백엔드 DTO의 jobNo 필드명 사용
+          'jobNo': jobopeningNo,
+          'userNo': userNo,
           'resumeNo': resumeNo,
         },
       );
@@ -91,13 +96,14 @@ class ApplyService {
   }
 
   /// 내 지원 목록 조회 (현재 로그인한 사용자)
+  /// GET /api/mypage/applies/{userNo}
   Future<List<dynamic>> getMyApplications() async {
     try {
       final userNo = await _getUserNo();
       if (userNo == null) {
         throw Exception('로그인이 필요합니다.');
       }
-      final res = await _dio.get('/api/apply/user/$userNo');
+      final res = await _dio.get('/api/mypage/applies/$userNo');
       return res.data is List ? res.data : [];
     } catch (e) {
       throw Exception('내 지원 내역을 불러오는데 실패했습니다: $e');
@@ -138,8 +144,23 @@ class ApplyService {
     }
   }
 
+  /// 지원 상태 변경 (기업용)
+  /// PUT /api/apply/{applyNo}/status?status=ACCEPTED
+  Future<bool> updateApplicationStatus(int applyNo, String status) async {
+    try {
+      await _dio.put(
+        '/api/apply/$applyNo/status',
+        queryParameters: {'status': status},
+      );
+      return true;
+    } catch (e) {
+      throw Exception('지원 상태 변경에 실패했습니다: $e');
+    }
+  }
+
   /// 특정 채용공고에 지원했는지 확인
-  Future<bool> hasAppliedToJob(int jobOpeningNo) async {
+  /// GET /api/apply/check?userNo=&jobNo=
+  Future<bool> hasAppliedToJob(int jobNo) async {
     try {
       final userNo = await _getUserNo();
       if (userNo == null) return false;
@@ -147,11 +168,11 @@ class ApplyService {
       final res = await _dio.get(
         '/api/apply/check',
         queryParameters: {
-          'jobopeningNo': jobOpeningNo,
+          'jobNo': jobNo,
           'userNo': userNo,
         },
       );
-      return res.data == true || (res.data is Map && res.data['hasApplied'] == true);
+      return res.data == true;
     } catch (e) {
       return false;
     }

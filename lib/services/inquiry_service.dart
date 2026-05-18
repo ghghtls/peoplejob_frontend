@@ -1,84 +1,92 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'config/api_config.dart';
 
 class InquiryService {
-  static const String baseUrl = 'http://localhost:8080/api/inquiry';
-  final Dio _dio = Dio();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final Dio _dio;
+  final FlutterSecureStorage _storage;
 
-  InquiryService() {
-    // Dio 기본 설정
-    _dio.options.connectTimeout = const Duration(seconds: 5);
-    _dio.options.receiveTimeout = const Duration(seconds: 3);
+  InquiryService({Dio? dio, FlutterSecureStorage? storage})
+      : _storage = storage ?? const FlutterSecureStorage(),
+        _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 10),
+            )) {
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _storage.read(key: 'jwt');
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          handler.next(options);
+        },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            await _storage.delete(key: 'jwt');
+          }
+          handler.next(error);
+        },
+      ),
+    );
   }
 
-  // JWT 토큰 가져오기
-  Future<String?> _getToken() async {
-    return await _storage.read(key: 'auth_token');
-  }
-
-  // 사용자 ID 가져오기
-  Future<String?> _getUserId() async {
-    return await _storage.read(key: 'user_id');
-  }
-
-  // 인증 헤더 생성
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await _getToken();
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+  Future<String?> _getUserNo() async {
+    return await _storage.read(key: 'userNo');
   }
 
   // 문의 등록
-  Future<bool> createInquiry(String title, String content) async {
+  // InquiryEntity는 writer(이름), email, category(NOT NULL) 기반
+  Future<bool> createInquiry(
+    String title,
+    String content, {
+    String category = '일반',
+  }) async {
     try {
-      final userId = await _getUserId();
+      if (await _getUserNo() == null) throw Exception('로그인이 필요합니다.');
 
-      if (userId == null) {
-        throw Exception('로그인이 필요합니다.');
-      }
+      final name = await _storage.read(key: 'name') ?? '';
+      final email = await _storage.read(key: 'email') ?? '';
 
-      final headers = await _getHeaders();
-
-      final response = await _dio.post(
-        baseUrl,
-        options: Options(headers: headers),
-        data: {'userNo': int.parse(userId), 'title': title, 'content': content},
+      await _dio.post(
+        '/api/inquiry',
+        data: {
+          'title': title,
+          'content': content,
+          'writer': name,
+          'email': email,
+          'category': category,
+        },
       );
-
-      return response.statusCode == 200;
+      return true;
     } catch (e) {
-      print('문의 등록 실패: $e');
+      debugPrint('문의 등록 실패: $e');
       return false;
     }
   }
 
   // 내 문의 목록 조회
+  // GET /api/inquiry/my?email=
   Future<List<Map<String, dynamic>>> getMyInquiries() async {
     try {
-      final userId = await _getUserId();
-
-      if (userId == null) {
-        return [];
-      }
-
-      final headers = await _getHeaders();
+      final myEmail = await _storage.read(key: 'email');
+      if (myEmail == null || myEmail.isEmpty) return [];
 
       final response = await _dio.get(
-        '$baseUrl/user/$userId',
-        options: Options(headers: headers),
+        '/api/inquiry/my',
+        queryParameters: {'email': myEmail},
       );
-
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.cast<Map<String, dynamic>>();
       }
       return [];
     } catch (e) {
-      print('문의 목록 조회 실패: $e');
+      debugPrint('문의 목록 조회 실패: $e');
       return [];
     }
   }
@@ -86,41 +94,25 @@ class InquiryService {
   // 문의 상세 조회
   Future<Map<String, dynamic>?> getInquiryDetail(int inquiryNo) async {
     try {
-      final headers = await _getHeaders();
-
-      final response = await _dio.get(
-        '$baseUrl/$inquiryNo',
-        options: Options(headers: headers),
-      );
-
-      if (response.statusCode == 200) {
-        return response.data;
-      }
+      final response = await _dio.get('/api/inquiry/$inquiryNo');
+      if (response.statusCode == 200) return response.data;
       return null;
     } catch (e) {
-      print('문의 상세 조회 실패: $e');
+      debugPrint('문의 상세 조회 실패: $e');
       return null;
     }
   }
 
   // 문의 수정
-  Future<bool> updateInquiry(
-    int inquiryNo,
-    String title,
-    String content,
-  ) async {
+  Future<bool> updateInquiry(int inquiryNo, String title, String content) async {
     try {
-      final headers = await _getHeaders();
-
-      final response = await _dio.put(
-        '$baseUrl/$inquiryNo',
-        options: Options(headers: headers),
+      await _dio.put(
+        '/api/inquiry/$inquiryNo',
         data: {'title': title, 'content': content},
       );
-
-      return response.statusCode == 200;
+      return true;
     } catch (e) {
-      print('문의 수정 실패: $e');
+      debugPrint('문의 수정 실패: $e');
       return false;
     }
   }
@@ -128,16 +120,10 @@ class InquiryService {
   // 문의 삭제
   Future<bool> deleteInquiry(int inquiryNo) async {
     try {
-      final headers = await _getHeaders();
-
-      final response = await _dio.delete(
-        '$baseUrl/$inquiryNo',
-        options: Options(headers: headers),
-      );
-
-      return response.statusCode == 200;
+      await _dio.delete('/api/inquiry/$inquiryNo');
+      return true;
     } catch (e) {
-      print('문의 삭제 실패: $e');
+      debugPrint('문의 삭제 실패: $e');
       return false;
     }
   }
@@ -145,20 +131,14 @@ class InquiryService {
   // 관리자 - 전체 문의 조회
   Future<List<Map<String, dynamic>>> getAllInquiries() async {
     try {
-      final headers = await _getHeaders();
-
-      final response = await _dio.get(
-        baseUrl,
-        options: Options(headers: headers),
-      );
-
+      final response = await _dio.get('/api/inquiry');
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.cast<Map<String, dynamic>>();
       }
       return [];
     } catch (e) {
-      print('전체 문의 조회 실패: $e');
+      debugPrint('전체 문의 조회 실패: $e');
       return [];
     }
   }
@@ -166,17 +146,13 @@ class InquiryService {
   // 관리자 - 답변 등록
   Future<bool> answerInquiry(int inquiryNo, String answer) async {
     try {
-      final headers = await _getHeaders();
-
-      final response = await _dio.put(
-        '$baseUrl/$inquiryNo/answer',
-        options: Options(headers: headers),
+      await _dio.put(
+        '/api/inquiry/$inquiryNo/answer',
         queryParameters: {'answer': answer},
       );
-
-      return response.statusCode == 200;
+      return true;
     } catch (e) {
-      print('답변 등록 실패: $e');
+      debugPrint('답변 등록 실패: $e');
       return false;
     }
   }

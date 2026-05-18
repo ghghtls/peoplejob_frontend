@@ -785,11 +785,19 @@ final publishedJobListProvider = FutureProvider<List<Job>>((ref) async {
   }
 });
 
-// 랜덤 채용공고 Provider (홈페이지 랜덤 섹션용)
+// 랜덤 채용공고 Provider (홈페이지 랜덤 섹션용) - 광고 공고 우선 유지
 final randomJobListProvider = FutureProvider<List<Job>>((ref) async {
   final publishedJobs = await ref.watch(publishedJobListProvider.future);
 
-  // 최대 10개까지만 랜덤으로 선택
-  final shuffledJobs = List<Job>.from(publishedJobs)..shuffle();
-  return shuffledJobs.take(10).toList();
+  // 광고 공고는 앞에 유지, 일반 공고만 셔플
+  final advertised = publishedJobs.where((j) => j.isAdvertised).toList();
+  final regular = List<Job>.from(publishedJobs.where((j) => !j.isAdvertised))..shuffle();
+  return [...advertised, ...regular].take(10).toList();
+});
+
+// 맞춤 채용공고 Provider - 최신 게시 순 상위 6개 (랜덤 섹션과 다른 공고 노출)
+final latestJobListProvider = FutureProvider<List<Job>>((ref) async {
+  final publishedJobs = await ref.watch(publishedJobListProvider.future);
+  // 백엔드가 regdate DESC 정렬로 반환하므로 앞쪽이 최신
+  return publishedJobs.take(6).toList();
 });

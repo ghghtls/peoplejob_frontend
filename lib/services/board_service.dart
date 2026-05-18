@@ -120,8 +120,14 @@ class BoardService {
   // 게시글 검색
   Future<List<dynamic>> searchBoards(String keyword) async {
     try {
-      final response = await _dio.get('/api/board/search?keyword=$keyword');
+      final response = await _dio.get(
+        '/api/board/search',
+        queryParameters: {'keyword': keyword},
+      );
       return (response.data as List).cast<dynamic>();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return [];
+      throw Exception('게시글 검색에 실패했습니다: $e');
     } catch (e) {
       throw Exception('게시글 검색에 실패했습니다: $e');
     }

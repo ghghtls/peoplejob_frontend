@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:peoplejob_frontend/services/auth_service.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:peoplejob_frontend/services/config/api_config.dart';
 import 'dart:io';
 import '../model/inquiry.dart';
 import '../model/job.dart';
+import '../../utils/excel_download_helper.dart';
 
 // AuthService Provider 추가
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -16,6 +19,7 @@ class AdminState {
   final List<Job> jobs;
   final List<dynamic> users;
   final List<dynamic> payments;
+  final List<dynamic> applicants;
   final Map<String, dynamic> dashboard;
   final bool isLoading;
   final String? error;
@@ -25,6 +29,7 @@ class AdminState {
     this.jobs = const [],
     this.users = const [],
     this.payments = const [],
+    this.applicants = const [],
     this.dashboard = const {},
     this.isLoading = false,
     this.error,
@@ -35,6 +40,7 @@ class AdminState {
     List<Job>? jobs,
     List<dynamic>? users,
     List<dynamic>? payments,
+    List<dynamic>? applicants,
     Map<String, dynamic>? dashboard,
     bool? isLoading,
     String? error,
@@ -44,6 +50,7 @@ class AdminState {
       jobs: jobs ?? this.jobs,
       users: users ?? this.users,
       payments: payments ?? this.payments,
+      applicants: applicants ?? this.applicants,
       dashboard: dashboard ?? this.dashboard,
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -58,7 +65,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
 
   AdminNotifier(this._dio, this._authService) : super(AdminState());
 
-  String get _baseUrl => 'http://localhost:8080/api/admin';
+  String get _baseUrl => '${dotenv.env['API_URL'] ?? ApiConfig.apiUrl}/api/admin';
 
   // 헤더에 토큰 추가
   Future<Map<String, String>> get _headers async {
@@ -136,6 +143,21 @@ class AdminNotifier extends StateNotifier<AdminState> {
     }
   }
 
+  // 전체 지원자 로드
+  Future<void> loadApplicants() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final headers = await _headers;
+      final response = await _dio.get(
+        '$_baseUrl/applicants',
+        options: Options(headers: headers),
+      );
+      state = state.copyWith(applicants: response.data as List, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(error: _handleError(e), isLoading: false);
+    }
+  }
+
   // 전체 회원 로드
   Future<void> loadUsers() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -200,6 +222,54 @@ class AdminNotifier extends StateNotifier<AdminState> {
     }
   }
 
+  // 채용공고 승인 (PENDING → PUBLISHED)
+  Future<bool> approveJob(int jobNo) async {
+    try {
+      final headers = await _headers;
+      await _dio.put(
+        '$_baseUrl/jobs/$jobNo/approve',
+        options: Options(headers: headers),
+      );
+      await loadJobs();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: _handleError(e));
+      return false;
+    }
+  }
+
+  // 채용공고 반려 (PENDING → DRAFT)
+  Future<bool> rejectJob(int jobNo) async {
+    try {
+      final headers = await _headers;
+      await _dio.put(
+        '$_baseUrl/jobs/$jobNo/reject',
+        options: Options(headers: headers),
+      );
+      await loadJobs();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: _handleError(e));
+      return false;
+    }
+  }
+
+  // 채용공고 강제 마감
+  Future<bool> expireJob(int jobNo) async {
+    try {
+      final headers = await _headers;
+      await _dio.put(
+        '$_baseUrl/jobs/$jobNo/expire',
+        options: Options(headers: headers),
+      );
+      await loadJobs();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: _handleError(e));
+      return false;
+    }
+  }
+
   // 결제 내역 로드
   Future<void> loadPayments() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -242,24 +312,28 @@ class AdminNotifier extends StateNotifier<AdminState> {
     return _downloadExcel('excel/payments', '결제내역목록');
   }
 
-  // 공통 Excel 다운로드 메서드
   Future<String?> _downloadExcel(String endpoint, String fileName) async {
     try {
-      // 권한 확인
-      if (Platform.isAndroid) {
-        final permission = await Permission.storage.request();
-        if (!permission.isGranted) {
-          state = state.copyWith(error: '저장소 권한이 필요합니다.');
-          return null;
-        }
+      final headers = await _headers;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final downloadFileName = '${fileName}_$timestamp.xlsx';
+
+      final response = await _dio.get(
+        '$_baseUrl/$endpoint',
+        options: Options(headers: headers, responseType: ResponseType.bytes),
+      );
+
+      final bytes = response.data;
+      final byteList = bytes is List<int> ? bytes : (bytes as List).cast<int>();
+
+      if (kIsWeb) {
+        await downloadExcelOnWeb(byteList, downloadFileName);
+        return downloadFileName;
       }
 
-      // 다운로드 디렉토리 가져오기
       Directory? directory;
       if (Platform.isAndroid) {
         directory = await getExternalStorageDirectory();
-        final downloadPath = '/storage/emulated/0/Download';
-        directory = Directory(downloadPath);
       } else {
         directory = await getApplicationDocumentsDirectory();
       }
@@ -269,21 +343,12 @@ class AdminNotifier extends StateNotifier<AdminState> {
         return null;
       }
 
-      final headers = await _headers;
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final downloadFileName = '${fileName}_$timestamp.xlsx';
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+
       final filePath = '${directory.path}/$downloadFileName';
-
-      // Excel 파일 다운로드
-      final response = await _dio.get(
-        '$_baseUrl/$endpoint',
-        options: Options(headers: headers, responseType: ResponseType.bytes),
-      );
-
-      // 파일 저장
-      final file = File(filePath);
-      await file.writeAsBytes(response.data);
-
+      await File(filePath).writeAsBytes(byteList);
       return filePath;
     } catch (e) {
       state = state.copyWith(error: _handleError(e));

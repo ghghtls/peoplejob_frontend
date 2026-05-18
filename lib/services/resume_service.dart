@@ -142,11 +142,17 @@ class ResumeService {
 
   // 이력서 검색 (빈 키워드는 즉시 빈 배열 반환하여 네트워크 호출 방지)
   Future<List<Map<String, dynamic>>> searchResumes(String keyword) async {
+    if (keyword.trim().isEmpty) return <Map<String, dynamic>>[];
     try {
-      if (keyword.trim().isEmpty) return <Map<String, dynamic>>[];
-      final response = await _dio.get('/api/resume/search?keyword=$keyword');
+      final response = await _dio.get(
+        '/api/resume/search',
+        queryParameters: {'keyword': keyword},
+      );
       final data = response.data as List<dynamic>;
       return data.cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return [];
+      throw Exception('이력서 검색에 실패했습니다: $e');
     } catch (e) {
       throw Exception('이력서 검색에 실패했습니다: $e');
     }
@@ -158,6 +164,9 @@ class ResumeService {
       final response = await _dio.get('/api/resume/jobtype/$jobType');
       final data = response.data as List<dynamic>;
       return data.cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return [];
+      throw Exception('직종별 이력서 조회에 실패했습니다: $e');
     } catch (e) {
       throw Exception('직종별 이력서 조회에 실패했습니다: $e');
     }
@@ -171,6 +180,9 @@ class ResumeService {
       final response = await _dio.get('/api/resume/location/$location');
       final data = response.data as List<dynamic>;
       return data.cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return [];
+      throw Exception('지역별 이력서 조회에 실패했습니다: $e');
     } catch (e) {
       throw Exception('지역별 이력서 조회에 실패했습니다: $e');
     }

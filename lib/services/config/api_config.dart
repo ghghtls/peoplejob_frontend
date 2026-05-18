@@ -8,7 +8,7 @@ class ApiConfig {
   /// 로컬/개발 기본 API URL (dart-define로 덮어씌울 수 있음)
   static String get baseUrl => const String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://localhost:9000',
+    defaultValue: 'http://localhost:8090',
   );
 
   /// 배포/스테이징 도메인

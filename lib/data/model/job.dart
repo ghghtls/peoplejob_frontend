@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class Job {
@@ -27,6 +25,9 @@ class Job {
   final bool canPublish;
   final bool canDelete;
   final bool isExpired;
+  final bool isAdvertised;
+  final String? filename;
+  final String? originalFilename;
 
   Job({
     this.jobNo,
@@ -51,6 +52,9 @@ class Job {
     this.canPublish = false,
     this.canDelete = true,
     this.isExpired = false,
+    this.isAdvertised = false,
+    this.filename,
+    this.originalFilename,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -79,6 +83,9 @@ class Job {
       canPublish: json['canPublish'] ?? false,
       canDelete: json['canDelete'] ?? true,
       isExpired: json['isExpired'] ?? false,
+      isAdvertised: json['isAdvertised'] ?? false,
+      filename: json['filename'],
+      originalFilename: json['originalFilename'],
     );
   }
 
@@ -173,6 +180,9 @@ class Job {
     bool? canPublish,
     bool? canDelete,
     bool? isExpired,
+    bool? isAdvertised,
+    String? filename,
+    String? originalFilename,
   }) {
     return Job(
       jobNo: jobNo ?? this.jobNo,
@@ -197,6 +207,9 @@ class Job {
       canPublish: canPublish ?? this.canPublish,
       canDelete: canDelete ?? this.canDelete,
       isExpired: isExpired ?? this.isExpired,
+      isAdvertised: isAdvertised ?? this.isAdvertised,
+      filename: filename ?? this.filename,
+      originalFilename: originalFilename ?? this.originalFilename,
     );
   }
 }

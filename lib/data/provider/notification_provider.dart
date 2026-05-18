@@ -1,311 +1,237 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:peoplejob_frontend/data/model/notification_model.dart';
 import 'package:peoplejob_frontend/services/notification_service.dart';
 
-class NotificationProvider with ChangeNotifier {
-  final NotificationService _notificationService = NotificationService();
+// ── State ────────────────────────────────────────────────────────────────────
 
-  List<NotificationModel> _notifications = [];
-  List<NotificationModel> _unreadNotifications = [];
-  NotificationStats? _stats;
-  bool _isLoading = false;
-  String? _error;
-  int _currentPage = 0;
-  bool _hasMore = true;
-  int _unreadCount = 0;
+class NotificationState {
+  final List<NotificationModel> notifications;
+  final List<NotificationModel> unreadNotifications;
+  final NotificationStats? stats;
+  final bool isLoading;
+  final String? error;
+  final int currentPage;
+  final bool hasMore;
+  final int unreadCount;
 
-  // Getters
-  List<NotificationModel> get notifications => _notifications;
-  List<NotificationModel> get unreadNotifications => _unreadNotifications;
-  NotificationStats? get stats => _stats;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  int get currentPage => _currentPage;
-  bool get hasMore => _hasMore;
-  int get unreadCount => _unreadCount;
+  const NotificationState({
+    this.notifications = const [],
+    this.unreadNotifications = const [],
+    this.stats,
+    this.isLoading = false,
+    this.error,
+    this.currentPage = 0,
+    this.hasMore = true,
+    this.unreadCount = 0,
+  });
 
-  /// 알림 목록 로드
-  Future<void> loadNotifications({
-    bool refresh = false,
-    int pageSize = 20,
-  }) async {
+  NotificationState copyWith({
+    List<NotificationModel>? notifications,
+    List<NotificationModel>? unreadNotifications,
+    NotificationStats? stats,
+    bool? isLoading,
+    String? error,
+    int? currentPage,
+    bool? hasMore,
+    int? unreadCount,
+    bool clearError = false,
+    bool clearStats = false,
+  }) {
+    return NotificationState(
+      notifications: notifications ?? this.notifications,
+      unreadNotifications: unreadNotifications ?? this.unreadNotifications,
+      stats: clearStats ? null : (stats ?? this.stats),
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      unreadCount: unreadCount ?? this.unreadCount,
+    );
+  }
+}
+
+// ── Notifier ─────────────────────────────────────────────────────────────────
+
+class NotificationNotifier extends StateNotifier<NotificationState> {
+  final NotificationService _service = NotificationService();
+
+  NotificationNotifier() : super(const NotificationState());
+
+  Future<void> loadNotifications({bool refresh = false, int pageSize = 20}) async {
     if (refresh) {
-      _currentPage = 0;
-      _notifications.clear();
-      _hasMore = true;
+      state = state.copyWith(currentPage: 0, notifications: [], hasMore: true, clearError: true);
     }
+    if (state.isLoading || !state.hasMore) return;
 
-    if (_isLoading || !_hasMore) return;
-
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final result = await _notificationService.getNotifications(
-        page: _currentPage,
-        size: pageSize,
-      );
-
+      final result = await _service.getNotifications(page: state.currentPage, size: pageSize);
       if (result['success']) {
         final response = NotificationPageResponse.fromJson(result['data']);
-
-        if (refresh) {
-          _notifications = response.notifications;
-        } else {
-          _notifications.addAll(response.notifications);
-        }
-
-        _hasMore = response.hasNext;
-        _currentPage++;
-        _unreadCount = response.unreadCount;
-
-        _error = null;
+        final merged = refresh ? response.notifications : [...state.notifications, ...response.notifications];
+        state = state.copyWith(
+          notifications: merged,
+          hasMore: response.hasNext,
+          currentPage: state.currentPage + 1,
+          unreadCount: response.unreadCount,
+          isLoading: false,
+        );
       } else {
-        _error = result['error'];
+        state = state.copyWith(error: result['error'], isLoading: false);
       }
     } catch (e) {
-      _error = '알림을 불러오는 중 오류가 발생했습니다: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      state = state.copyWith(error: '알림을 불러오는 중 오류가 발생했습니다: $e', isLoading: false);
     }
   }
 
-  /// 읽지 않은 알림 로드
   Future<void> loadUnreadNotifications() async {
     try {
-      final result = await _notificationService.getUnreadNotifications();
-
+      final result = await _service.getUnreadNotifications();
       if (result['success']) {
-        _unreadNotifications =
-            (result['data'] as List)
-                .map((item) => NotificationModel.fromJson(item))
-                .toList();
-        _unreadCount = _unreadNotifications.length;
-        notifyListeners();
+        final list = (result['data'] as List).map((e) => NotificationModel.fromJson(e)).toList();
+        state = state.copyWith(unreadNotifications: list, unreadCount: list.length);
       }
     } catch (e) {
       debugPrint('읽지 않은 알림 로드 실패: $e');
     }
   }
 
-  /// 읽지 않은 알림 개수 새로고침
   Future<void> refreshUnreadCount() async {
     try {
-      final result = await _notificationService.getUnreadCount();
+      final result = await _service.getUnreadCount();
       if (result['success']) {
-        _unreadCount = result['count'];
-        notifyListeners();
+        state = state.copyWith(unreadCount: result['count'] as int);
       }
     } catch (e) {
       debugPrint('읽지 않은 알림 개수 새로고침 실패: $e');
     }
   }
 
-  /// 알림 통계 로드
   Future<void> loadStats() async {
     try {
-      final result = await _notificationService.getNotificationStats();
-
+      final result = await _service.getNotificationStats();
       if (result['success']) {
-        _stats = NotificationStats.fromJson(result['data']);
-        notifyListeners();
+        state = state.copyWith(stats: NotificationStats.fromJson(result['data']));
       }
     } catch (e) {
       debugPrint('알림 통계 로드 실패: $e');
     }
   }
 
-  /// 특정 알림 읽음 처리
   Future<bool> markAsRead(int notificationId) async {
     try {
-      final result = await _notificationService.markAsRead(
-        notificationId: notificationId,
-      );
-
+      final result = await _service.markAsRead(notificationId: notificationId);
       if (result['success']) {
-        // 로컬 상태 업데이트
-        final index = _notifications.indexWhere((n) => n.id == notificationId);
-        if (index != -1) {
-          _notifications[index] = NotificationModel(
-            id: _notifications[index].id,
-            recipientUserId: _notifications[index].recipientUserId,
-            title: _notifications[index].title,
-            message: _notifications[index].message,
-            type: _notifications[index].type,
-            typeDescription: _notifications[index].typeDescription,
-            isRead: true,
-            relatedEntityType: _notifications[index].relatedEntityType,
-            relatedEntityId: _notifications[index].relatedEntityId,
-            actionUrl: _notifications[index].actionUrl,
-            createdAt: _notifications[index].createdAt,
-            readAt: DateTime.now(),
-            timeAgo: _notifications[index].timeAgo,
+        final updated = state.notifications.map((n) {
+          if (n.id != notificationId) return n;
+          return NotificationModel(
+            id: n.id, recipientUserId: n.recipientUserId, title: n.title,
+            message: n.message, type: n.type, typeDescription: n.typeDescription,
+            isRead: true, relatedEntityType: n.relatedEntityType,
+            relatedEntityId: n.relatedEntityId, actionUrl: n.actionUrl,
+            createdAt: n.createdAt, readAt: DateTime.now(), timeAgo: n.timeAgo,
           );
-        }
-
-        // 읽지 않은 알림 목록에서 제거
-        _unreadNotifications.removeWhere((n) => n.id == notificationId);
-        _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
-
-        notifyListeners();
+        }).toList();
+        state = state.copyWith(
+          notifications: updated,
+          unreadNotifications: state.unreadNotifications.where((n) => n.id != notificationId).toList(),
+          unreadCount: state.unreadCount > 0 ? state.unreadCount - 1 : 0,
+        );
         return true;
       }
-      return false;
     } catch (e) {
       debugPrint('알림 읽음 처리 실패: $e');
-      return false;
     }
+    return false;
   }
 
-  /// 모든 알림 읽음 처리
   Future<bool> markAllAsRead() async {
     try {
-      final result = await _notificationService.markAllAsRead();
-
+      final result = await _service.markAllAsRead();
       if (result['success']) {
-        // 로컬 상태 업데이트
-        _notifications =
-            _notifications.map((notification) {
-              return NotificationModel(
-                id: notification.id,
-                recipientUserId: notification.recipientUserId,
-                title: notification.title,
-                message: notification.message,
-                type: notification.type,
-                typeDescription: notification.typeDescription,
-                isRead: true,
-                relatedEntityType: notification.relatedEntityType,
-                relatedEntityId: notification.relatedEntityId,
-                actionUrl: notification.actionUrl,
-                createdAt: notification.createdAt,
-                readAt: DateTime.now(),
-                timeAgo: notification.timeAgo,
-              );
-            }).toList();
-
-        _unreadNotifications.clear();
-        _unreadCount = 0;
-
-        notifyListeners();
+        final updated = state.notifications.map((n) => NotificationModel(
+          id: n.id, recipientUserId: n.recipientUserId, title: n.title,
+          message: n.message, type: n.type, typeDescription: n.typeDescription,
+          isRead: true, relatedEntityType: n.relatedEntityType,
+          relatedEntityId: n.relatedEntityId, actionUrl: n.actionUrl,
+          createdAt: n.createdAt, readAt: DateTime.now(), timeAgo: n.timeAgo,
+        )).toList();
+        state = state.copyWith(notifications: updated, unreadNotifications: [], unreadCount: 0);
         return true;
       }
-      return false;
     } catch (e) {
       debugPrint('전체 읽음 처리 실패: $e');
-      return false;
     }
+    return false;
   }
 
-  /// 특정 알림 삭제
   Future<bool> deleteNotification(int notificationId) async {
     try {
-      final result = await _notificationService.deleteNotification(
-        notificationId: notificationId,
-      );
-
+      final result = await _service.deleteNotification(notificationId: notificationId);
       if (result['success']) {
-        // 로컬 상태에서 제거
-        _notifications.removeWhere((n) => n.id == notificationId);
-        _unreadNotifications.removeWhere((n) => n.id == notificationId);
-
-        notifyListeners();
+        state = state.copyWith(
+          notifications: state.notifications.where((n) => n.id != notificationId).toList(),
+          unreadNotifications: state.unreadNotifications.where((n) => n.id != notificationId).toList(),
+        );
         return true;
       }
-      return false;
     } catch (e) {
       debugPrint('알림 삭제 실패: $e');
-      return false;
     }
+    return false;
   }
 
-  /// 여러 알림 일괄 삭제
-  Future<bool> deleteMultipleNotifications(
-    List<int> notificationIds,
-  ) async {
+  Future<bool> deleteMultipleNotifications(List<int> ids) async {
     try {
-      final result = await _notificationService.deleteMultipleNotifications(
-        notificationIds: notificationIds,
-      );
-
+      final result = await _service.deleteMultipleNotifications(notificationIds: ids);
       if (result['success']) {
-        // 로컬 상태에서 제거
-        _notifications.removeWhere((n) => notificationIds.contains(n.id));
-        _unreadNotifications.removeWhere((n) => notificationIds.contains(n.id));
-
-        notifyListeners();
+        state = state.copyWith(
+          notifications: state.notifications.where((n) => !ids.contains(n.id)).toList(),
+          unreadNotifications: state.unreadNotifications.where((n) => !ids.contains(n.id)).toList(),
+        );
         return true;
       }
-      return false;
     } catch (e) {
       debugPrint('일괄 삭제 실패: $e');
-      return false;
     }
+    return false;
   }
 
-  /// 모든 알림 삭제
   Future<bool> deleteAllNotifications() async {
     try {
-      final result = await _notificationService.deleteAllNotifications();
-
+      final result = await _service.deleteAllNotifications();
       if (result['success']) {
-        // 로컬 상태 초기화
-        _notifications.clear();
-        _unreadNotifications.clear();
-        _unreadCount = 0;
-
-        notifyListeners();
+        state = state.copyWith(notifications: [], unreadNotifications: [], unreadCount: 0);
         return true;
       }
-      return false;
     } catch (e) {
       debugPrint('전체 삭제 실패: $e');
-      return false;
     }
+    return false;
   }
 
-  /// 새로운 알림 추가 (실시간 알림용)
   void addNewNotification(NotificationModel notification) {
-    _notifications.insert(0, notification);
-    if (notification.isUnread) {
-      _unreadNotifications.insert(0, notification);
-      _unreadCount++;
-    }
-    notifyListeners();
+    state = state.copyWith(
+      notifications: [notification, ...state.notifications],
+      unreadNotifications: notification.isUnread
+          ? [notification, ...state.unreadNotifications]
+          : state.unreadNotifications,
+      unreadCount: notification.isUnread ? state.unreadCount + 1 : state.unreadCount,
+    );
   }
 
-  /// 에러 초기화
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
+  void clearError() => state = state.copyWith(clearError: true);
 
-  /// 타입별 알림 필터링
-  List<NotificationModel> getNotificationsByType(NotificationType type) {
-    return _notifications.where((n) => n.type == type.value).toList();
-  }
+  List<NotificationModel> getByType(NotificationType type) =>
+      state.notifications.where((n) => n.type == type.value).toList();
 
-  /// 오늘 온 알림들
-  List<NotificationModel> get todayNotifications {
-    return _notifications.where((n) => n.isToday).toList();
-  }
-
-  /// 이번 주 온 알림들
-  List<NotificationModel> get thisWeekNotifications {
-    return _notifications.where((n) => n.isThisWeek).toList();
-  }
-
-  /// 상태 초기화
-  void reset() {
-    _notifications.clear();
-    _unreadNotifications.clear();
-    _stats = null;
-    _isLoading = false;
-    _error = null;
-    _currentPage = 0;
-    _hasMore = true;
-    _unreadCount = 0;
-    notifyListeners();
-  }
+  void reset() => state = const NotificationState();
 }
+
+// ── Provider ─────────────────────────────────────────────────────────────────
+
+final notificationProvider =
+    StateNotifierProvider<NotificationNotifier, NotificationState>(
+  (_) => NotificationNotifier(),
+);

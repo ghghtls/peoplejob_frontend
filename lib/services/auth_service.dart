@@ -57,11 +57,15 @@ class AuthService {
   }
 
   Future<Map<String, String?>> getUserInfo() async {
+    final role = await _storage.read(key: 'role');
+    final userType = await _storage.read(key: 'userType');
+    // role이 ROLE_ADMIN이면 userType을 항상 'admin'으로 반환
+    final effectiveUserType = (role == 'ADMIN' || role == 'ROLE_ADMIN') ? 'admin' : userType?.toLowerCase();
     return {
       'userid': await _storage.read(key: 'userid'),
       'userNo': await _storage.read(key: 'userNo'),
-      'role': await _storage.read(key: 'role'),
-      'userType': await _storage.read(key: 'userType'),
+      'role': role,
+      'userType': effectiveUserType,
       'name': await _storage.read(key: 'name'),
       'email': await _storage.read(key: 'email'),
     };
@@ -86,13 +90,14 @@ class AuthService {
       );
 
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        final userType = (data['userType'] as String? ?? '').toLowerCase();
 
         await _storage.write(key: 'jwt', value: data['token']);
         await _storage.write(key: 'userid', value: data['userid']);
         await _storage.write(key: 'userNo', value: data['userNo'].toString());
         await _storage.write(key: 'role', value: data['role']);
-        await _storage.write(key: 'userType', value: data['userType']);
+        await _storage.write(key: 'userType', value: userType);
         await _storage.write(key: 'name', value: data['name']);
         await _storage.write(key: 'email', value: data['email']);
 
@@ -159,11 +164,11 @@ class AuthService {
       );
 
       if (res.statusCode == 200) {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
+        return Map<String, dynamic>.from(jsonDecode(utf8.decode(res.bodyBytes)));
       }
-      
+
       if (res.statusCode == 400) {
-        final error = jsonDecode(res.body);
+        final error = jsonDecode(utf8.decode(res.bodyBytes));
         throw Exception(error['error'] ?? '회원가입 실패');
       }
       
@@ -201,9 +206,9 @@ class AuthService {
       );
 
       if (res.statusCode == 200) {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
+        return Map<String, dynamic>.from(jsonDecode(utf8.decode(res.bodyBytes)));
       }
-      
+
       return {'available': false, 'message': '중복 확인 실패'};
     } catch (e) {
       debugPrint('아이디 중복 확인 오류: $e');
@@ -227,13 +232,31 @@ class AuthService {
       );
 
       if (res.statusCode == 200) {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
+        return Map<String, dynamic>.from(jsonDecode(utf8.decode(res.bodyBytes)));
       }
       throw Exception('회원 정보 조회 실패: ');
     } catch (e) {
       debugPrint('회원 정보 조회 오류: ');
       rethrow;
     }
+  }
+
+  /// 백엔드에서 최신 정보를 가져와 storage 갱신 (한글 깨짐·userType 대소문자 복구용)
+  Future<void> refreshUserInfoFromServer() async {
+    try {
+      final profile = await getUserProfile();
+      if (profile == null) return;
+      final username = profile['username'] as String?;
+      final email = profile['email'] as String?;
+      // role이 ROLE_ADMIN이면 userType을 서버값으로 덮어쓰지 않음
+      final storedRole = await _storage.read(key: 'role');
+      if (username != null) await _storage.write(key: 'name', value: username);
+      if (email != null) await _storage.write(key: 'email', value: email);
+      if (storedRole != 'ADMIN' && storedRole != 'ROLE_ADMIN') {
+        final userType = (profile['userType'] as String?)?.toLowerCase();
+        if (userType != null) await _storage.write(key: 'userType', value: userType);
+      }
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>?> updateUserProfile({
@@ -288,7 +311,7 @@ class AuthService {
       );
 
       if (res.statusCode == 200) {
-        final data = Map<String, dynamic>.from(jsonDecode(res.body));
+        final data = Map<String, dynamic>.from(jsonDecode(utf8.decode(res.bodyBytes)));
 
         final user = data['user'];
         if (user is Map) {
@@ -331,7 +354,7 @@ class AuthService {
       if (res.statusCode == 200) return true;
 
       try {
-        final err = jsonDecode(res.body);
+        final err = jsonDecode(utf8.decode(res.bodyBytes));
         throw Exception(err['error'] ?? '비밀번호 변경 실패');
       } catch (_) {
         throw Exception('비밀번호 변경 실패: ');

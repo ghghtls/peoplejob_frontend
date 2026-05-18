@@ -44,7 +44,7 @@ class ScrapService {
         '/api/scrap',
         data: {
           'userNo': userNo,
-          'jobopeningNo': jobopeningNo,
+          'jobNo': jobopeningNo,  // ScrapDTO 필드명 jobNo
         },
       );
       return true;
@@ -106,7 +106,8 @@ class ScrapService {
   }
 
   /// 특정 채용공고가 스크랩되어 있는지 확인
-  Future<bool> isScraped(int jobOpeningNo) async {
+  /// GET /api/scrap/check?userNo=&jobNo=
+  Future<bool> isScraped(int jobNo) async {
     try {
       final userNo = await _getUserNo();
       if (userNo == null) return false;
@@ -114,11 +115,11 @@ class ScrapService {
       final res = await _dio.get(
         '/api/scrap/check',
         queryParameters: {
-          'jobopeningNo': jobOpeningNo,
+          'jobNo': jobNo,
           'userNo': userNo,
         },
       );
-      return res.data == true || (res.data is Map && res.data['isScraped'] == true);
+      return res.data == true;
     } catch (e) {
       return false;
     }

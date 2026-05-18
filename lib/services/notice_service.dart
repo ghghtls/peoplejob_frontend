@@ -1,13 +1,19 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/model/notice.dart';
+import 'config/api_config.dart';
 
 class NoticeService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://localhost:9000'));
+  final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  NoticeService() {
-    // JWT 토큰을 자동으로 헤더에 추가하는 인터셉터
+  NoticeService({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+            )) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -31,7 +37,7 @@ class NoticeService {
       }
       return [];
     } catch (e) {
-      print('공지사항 목록 조회 실패: $e');
+      debugPrint('공지사항 목록 조회 실패: $e');
       throw Exception('공지사항 목록을 불러오는데 실패했습니다.');
     }
   }
@@ -63,7 +69,7 @@ class NoticeService {
       }
       return {'notices': [], 'totalElements': 0, 'totalPages': 0};
     } catch (e) {
-      print('공지사항 페이징 조회 실패: $e');
+      debugPrint('공지사항 페이징 조회 실패: $e');
       throw Exception('공지사항 목록을 불러오는데 실패했습니다.');
     }
   }
@@ -77,7 +83,7 @@ class NoticeService {
       }
       return null;
     } catch (e) {
-      print('공지사항 상세 조회 실패: $e');
+      debugPrint('공지사항 상세 조회 실패: $e');
       throw Exception('공지사항 상세 정보를 불러오는데 실패했습니다.');
     }
   }
@@ -92,7 +98,7 @@ class NoticeService {
       }
       return [];
     } catch (e) {
-      print('중요 공지사항 조회 실패: $e');
+      debugPrint('중요 공지사항 조회 실패: $e');
       throw Exception('중요 공지사항을 불러오는데 실패했습니다.');
     }
   }
@@ -125,7 +131,7 @@ class NoticeService {
       }
       return {'notices': [], 'totalElements': 0, 'totalPages': 0};
     } catch (e) {
-      print('공지사항 검색 실패: $e');
+      debugPrint('공지사항 검색 실패: $e');
       throw Exception('공지사항 검색에 실패했습니다.');
     }
   }
@@ -144,7 +150,7 @@ class NoticeService {
       }
       return [];
     } catch (e) {
-      print('최근 공지사항 조회 실패: $e');
+      debugPrint('최근 공지사항 조회 실패: $e');
       throw Exception('최근 공지사항을 불러오는데 실패했습니다.');
     }
   }
@@ -161,7 +167,7 @@ class NoticeService {
       }
       return null;
     } catch (e) {
-      print('공지사항 등록 실패: $e');
+      debugPrint('공지사항 등록 실패: $e');
       throw Exception('공지사항 등록에 실패했습니다.');
     }
   }
@@ -176,7 +182,7 @@ class NoticeService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print('공지사항 수정 실패: $e');
+      debugPrint('공지사항 수정 실패: $e');
       throw Exception('공지사항 수정에 실패했습니다.');
     }
   }
@@ -187,7 +193,7 @@ class NoticeService {
       final response = await _dio.delete('/api/notice/$noticeId');
       return response.statusCode == 200;
     } catch (e) {
-      print('공지사항 삭제 실패: $e');
+      debugPrint('공지사항 삭제 실패: $e');
       throw Exception('공지사항 삭제에 실패했습니다.');
     }
   }
@@ -219,7 +225,7 @@ class NoticeService {
       }
       return {'notices': [], 'totalElements': 0, 'totalPages': 0};
     } catch (e) {
-      print('관리자용 공지사항 조회 실패: $e');
+      debugPrint('관리자용 공지사항 조회 실패: $e');
       throw Exception('관리자용 공지사항 목록을 불러오는데 실패했습니다.');
     }
   }
@@ -230,7 +236,7 @@ class NoticeService {
       final response = await _dio.put('/api/notice/$noticeId/toggle-status');
       return response.statusCode == 200;
     } catch (e) {
-      print('공지사항 상태 변경 실패: $e');
+      debugPrint('공지사항 상태 변경 실패: $e');
       throw Exception('공지사항 상태 변경에 실패했습니다.');
     }
   }
@@ -241,7 +247,7 @@ class NoticeService {
       final response = await _dio.put('/api/notice/$noticeId/toggle-important');
       return response.statusCode == 200;
     } catch (e) {
-      print('공지사항 중요도 변경 실패: $e');
+      debugPrint('공지사항 중요도 변경 실패: $e');
       throw Exception('공지사항 중요도 변경에 실패했습니다.');
     }
   }
@@ -254,7 +260,7 @@ class NoticeService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('공지사항 완전 삭제 실패: $e');
+      debugPrint('공지사항 완전 삭제 실패: $e');
       throw Exception('공지사항 완전 삭제에 실패했습니다.');
     }
   }
@@ -268,7 +274,7 @@ class NoticeService {
       }
       return null;
     } catch (e) {
-      print('공지사항 통계 조회 실패: $e');
+      debugPrint('공지사항 통계 조회 실패: $e');
       throw Exception('공지사항 통계 조회에 실패했습니다.');
     }
   }
@@ -283,7 +289,7 @@ class NoticeService {
       }
       return [];
     } catch (e) {
-      print('작성자별 공지사항 조회 실패: $e');
+      debugPrint('작성자별 공지사항 조회 실패: $e');
       throw Exception('작성자별 공지사항을 불러오는데 실패했습니다.');
     }
   }
@@ -294,7 +300,7 @@ class NoticeService {
       final response = await _dio.post('/api/notice/$noticeId/view');
       return response.statusCode == 200;
     } catch (e) {
-      print('조회수 증가 실패: $e');
+      debugPrint('조회수 증가 실패: $e');
       // 조회수 증가는 실패해도 무시할 수 있음
       return false;
     }

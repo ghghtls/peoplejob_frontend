@@ -30,10 +30,14 @@ class JobService {
   }
 
 
-  Future<List<dynamic>> getAllJobs() async {
+  Future<List<dynamic>> getAllJobs({int size = 50}) async {
     try {
-      final response = await _dio.get('/api/jobopening');
-      return response.data;
+      final response = await _dio.get('/api/jobs',
+          queryParameters: {'status': 'published', 'size': size});
+      if (response.data is Map) {
+        return response.data['content'] ?? [];
+      }
+      return response.data is List ? response.data : [];
     } catch (e) {
       throw Exception('채용공고 목록을 불러오는데 실패했습니다: $e');
     }
@@ -41,7 +45,7 @@ class JobService {
 
   Future<Map<String, dynamic>> getJobDetail(int jobId) async {
     try {
-      final response = await _dio.get('/api/jobopening/$jobId');
+      final response = await _dio.get('/api/jobs/$jobId');
       return response.data;
     } catch (e) {
       throw Exception('채용공고 상세 정보를 불러오는데 실패했습니다: $e');
@@ -50,25 +54,31 @@ class JobService {
 
   Future<bool> createJob(Map<String, dynamic> jobData) async {
     try {
-      await _dio.post('/api/jobopening', data: jobData);
+      await _dio.post('/api/jobs', data: jobData);
       return true;
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error'] ?? e.message ?? '알 수 없는 오류';
+      throw Exception('채용공고 등록 실패: $msg');
     } catch (e) {
-      throw Exception('채용공고 등록에 실패했습니다: $e');
+      throw Exception('채용공고 등록 실패: $e');
     }
   }
 
   Future<bool> updateJob(int jobId, Map<String, dynamic> jobData) async {
     try {
-      await _dio.put('/api/jobopening/$jobId', data: jobData);
+      await _dio.put('/api/jobs/$jobId', data: jobData);
       return true;
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error'] ?? e.message ?? '알 수 없는 오류';
+      throw Exception('채용공고 수정 실패: $msg');
     } catch (e) {
-      throw Exception('채용공고 수정에 실패했습니다: $e');
+      throw Exception('채용공고 수정 실패: $e');
     }
   }
 
   Future<bool> deleteJob(int jobId) async {
     try {
-      await _dio.delete('/api/jobopening/$jobId');
+      await _dio.delete('/api/jobs/$jobId');
       return true;
     } catch (e) {
       throw Exception('채용공고 삭제에 실패했습니다: $e');
@@ -78,9 +88,14 @@ class JobService {
   Future<List<dynamic>> searchJobs(String keyword) async {
     try {
       final response = await _dio.get(
-        '/api/jobopening/search?keyword=$keyword',
+        '/api/jobs/search',
+        queryParameters: {'keyword': keyword},
       );
-      return response.data;
+      // 백엔드가 Page<JobopeningDTO> 반환 → content 추출
+      if (response.data is Map) {
+        return response.data['content'] ?? [];
+      }
+      return response.data is List ? response.data : [];
     } catch (e) {
       throw Exception('채용공고 검색에 실패했습니다: $e');
     }
@@ -89,7 +104,7 @@ class JobService {
 
   Future<Map<String, dynamic>> saveDraft(Map<String, dynamic> jobData) async {
     try {
-      final response = await _dio.post('/api/jobopening/draft', data: jobData);
+      final response = await _dio.post('/api/jobs/draft', data: jobData);
       return {
         'success': true,
         'job': response.data['job'],
@@ -107,7 +122,7 @@ class JobService {
   }) async {
     try {
       final response = await _dio.get(
-        '/api/jobopening/user/$userNo/drafts',
+        '/api/jobs/user/$userNo/drafts',
         queryParameters: {'page': page, 'size': size},
       );
       return {
@@ -126,7 +141,7 @@ class JobService {
   Future<Map<String, dynamic>> publishJob(int jobNo, int userNo) async {
     try {
       final response = await _dio.post(
-        '/api/jobopening/$jobNo/publish',
+        '/api/jobs/$jobNo/publish',
         queryParameters: {'userNo': userNo},
       );
       return {
@@ -145,7 +160,7 @@ class JobService {
   }) async {
     try {
       final response = await _dio.get(
-        '/api/jobopening',
+        '/api/jobs',
         queryParameters: {'status': 'published', 'page': page, 'size': size},
       );
 
@@ -203,7 +218,7 @@ class JobService {
       }
 
       final response = await _dio.get(
-        '/api/jobopening/user/$userNo',
+        '/api/jobs/user/$userNo',
         queryParameters: queryParams,
       );
 
@@ -222,7 +237,7 @@ class JobService {
 
   Future<Map<String, dynamic>> getUserJobStatusCounts(int userNo) async {
     try {
-      final response = await _dio.get('/api/jobopening/user/$userNo/status-counts');
+      final response = await _dio.get('/api/jobs/user/$userNo/status-counts');
       return {'success': true, 'counts': response.data};
     } catch (e) {
       throw Exception('상태별 개수 조회에 실패했습니다: $e');
@@ -236,7 +251,7 @@ class JobService {
   ) async {
     try {
       final response = await _dio.put(
-        '/api/jobopening/$jobNo/status',
+        '/api/jobs/$jobNo/status',
         queryParameters: {'status': status, 'userNo': userNo},
       );
       return {
@@ -256,7 +271,7 @@ class JobService {
   }) async {
     try {
       final response = await _dio.get(
-        '/api/jobopening/search',
+        '/api/jobs/search',
         queryParameters: {'keyword': keyword, 'page': page, 'size': size},
       );
       return {
@@ -290,7 +305,7 @@ class JobService {
       }
 
       final response = await _dio.get(
-        '/api/jobopening/category',
+        '/api/jobs/category',
         queryParameters: queryParams,
       );
 
@@ -310,7 +325,7 @@ class JobService {
 
   Future<Map<String, dynamic>> createJobPosting(Job job) async {
     try {
-      final response = await _dio.post('/api/jobopening', data: job.toJson());
+      final response = await _dio.post('/api/jobs', data: job.toJson());
       return {
         'success': true,
         'job': Job.fromJson(response.data['job']),
@@ -323,7 +338,7 @@ class JobService {
 
   Future<Map<String, dynamic>> updateJobPosting(int jobNo, Job job) async {
     try {
-      final response = await _dio.put('/api/jobopening/$jobNo', data: job.toJson());
+      final response = await _dio.put('/api/jobs/$jobNo', data: job.toJson());
       return {
         'success': true,
         'job': Job.fromJson(response.data['job']),
@@ -336,7 +351,7 @@ class JobService {
 
   Future<Map<String, dynamic>> deleteJobPosting(int jobNo) async {
     try {
-      final response = await _dio.delete('/api/jobopening/$jobNo');
+      final response = await _dio.delete('/api/jobs/$jobNo');
       return {'success': true, 'message': response.data['message']};
     } catch (e) {
       throw Exception('채용공고 삭제에 실패했습니다: $e');
@@ -345,7 +360,7 @@ class JobService {
 
   Future<Job> getJobPosting(int jobNo) async {
     try {
-      final response = await _dio.get('/api/jobopening/$jobNo');
+      final response = await _dio.get('/api/jobs/$jobNo');
       return Job.fromJson(response.data);
     } catch (e) {
       throw Exception('채용공고 조회에 실패했습니다: $e');
@@ -355,7 +370,7 @@ class JobService {
 
   Future<Map<String, dynamic>> expireOverdueJobs() async {
     try {
-      final response = await _dio.post('/api/jobopening/expire-overdue');
+      final response = await _dio.post('/api/jobs/expire-overdue');
       return {'success': true, 'message': response.data['message']};
     } catch (e) {
       throw Exception('자동 마감 처리에 실패했습니다: $e');
@@ -364,7 +379,7 @@ class JobService {
 
   Future<Map<String, dynamic>> expireJob(int jobNo) async {
     try {
-      final response = await _dio.post('/api/jobopening/$jobNo/expire');
+      final response = await _dio.post('/api/jobs/$jobNo/expire');
       return {
         'success': true,
         'job': Job.fromJson(response.data['job']),
