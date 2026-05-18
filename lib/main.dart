@@ -8,6 +8,7 @@ import 'package:peoplejob_frontend/ui/pages/board/board_detail_page.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/board/board_write_page.dart';
 import 'package:peoplejob_frontend/ui/pages/company_mypage/company_mypage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/company_mypage/job_management_page.dart';
 
 import 'package:peoplejob_frontend/ui/pages/home/home_page.dart';
 import 'package:peoplejob_frontend/ui/pages/inquiry/inquiry_detail_page.dart';
@@ -25,9 +26,11 @@ import 'package:peoplejob_frontend/ui/pages/mypage/my_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/scrap/scrap_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/mypage/apply/apply_list_page.dart';
 import 'package:peoplejob_frontend/ui/pages/company/job_applications_page.dart';
+import 'package:peoplejob_frontend/ui/pages/company/company_applicants_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_product_selection_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_result_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_schedule_page.dart';
+import 'package:peoplejob_frontend/ui/pages/payment/payment_history_page.dart';
 import 'package:peoplejob_frontend/ui/pages/payment/payment_target_selection_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resources/job_news_page.dart';
 import 'package:peoplejob_frontend/ui/pages/resources/resource_list_page.dart';
@@ -51,12 +54,24 @@ import 'package:peoplejob_frontend/ui/pages/admin/admin_board_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_popup_manage_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_home_page.dart';
 import 'package:peoplejob_frontend/ui/pages/admin/admin_inquiry_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/admin_faq_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/admin_file_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/admin_applicant_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/admin_job_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/service_product_list_page.dart';
+import 'package:peoplejob_frontend/ui/pages/mypage/profile/profile_edit_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/board/board_edit_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/board/board_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/board/board_register_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/popup/popup_edit_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/popup/popup_manage_page.dart';
+import 'package:peoplejob_frontend/ui/pages/admin/popup/popup_register_page.dart';
+import 'package:peoplejob_frontend/data/model/job.dart';
 
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'package:peoplejob_frontend/data/provider/notification_provider.dart';
-import 'package:provider/provider.dart' as pv;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,17 +94,9 @@ void main() async {
     await Firebase.initializeApp();
   }
 
-  // Riverpod + provider(알림용) 함께 사용
   runApp(
-    fr.ProviderScope(
-      child: pv.MultiProvider(
-        providers: [
-          pv.ChangeNotifierProvider<NotificationProvider>(
-            create: (_) => NotificationProvider(),
-          ),
-        ],
-        child: const MyApp(),
-      ),
+    const fr.ProviderScope(
+      child: MyApp(),
     ),
   );
 }
@@ -108,6 +115,16 @@ class MyApp extends fr.ConsumerWidget {
       title: 'PeopleJob',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
+      locale: const Locale('ko', 'KR'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko', 'KR'),
+        Locale('en', 'US'),
+      ],
       initialRoute: '/',
       routes: {
         '/': (context) => const HomePage(),
@@ -121,6 +138,8 @@ class MyApp extends fr.ConsumerWidget {
         // 마이페이지
         '/mypage': (context) => const MyPage(),
         '/companymypage': (context) => const CompanyMyPage(),
+        '/job-manage': (context) => const JobManagementPage(),
+        '/company-applicants': (context) => const CompanyApplicantsPage(),
 
         // 채용공고
         '/job-list': (context) => const JobListPage(),
@@ -141,6 +160,7 @@ class MyApp extends fr.ConsumerWidget {
 
         // 공지사항
         '/notice': (context) => const NoticeListPage(),
+        '/notice-list': (context) => const NoticeListPage(),
 
         // 문의사항
         '/inquiry/list': (context) => const InquiryListPage(),
@@ -148,6 +168,7 @@ class MyApp extends fr.ConsumerWidget {
 
         // 검색
         '/search': (context) => const SearchPage(),
+        '/talent-search': (context) => const TalentSearchPage(),
         '/search/talentSearchPage': (context) => const TalentSearchPage(),
 
         // 결제
@@ -156,12 +177,16 @@ class MyApp extends fr.ConsumerWidget {
         '/payment/product': (context) => const PaymentProductSelectionPage(),
         '/payment/schedule': (context) => const PaymentSchedulePage(),
         '/payment/result': (context) => const PaymentResultPage(),
+        '/payment/history': (context) => const PaymentHistoryPage(),
 
         // 자료실
         '/resources/list': (context) => const ResourceListPage(),
 
         // 도구
         '/tools/wordcount': (context) => const WordCountPage(),
+
+        // 내정보 수정
+        '/profile-edit': (context) => const ProfileEditPage(),
 
         // 스크랩
         '/scrap': (context) => const ScrapListPage(),
@@ -199,6 +224,41 @@ class MyApp extends fr.ConsumerWidget {
                 isAdmin
                     ? const AdminInquiryManagePage()
                     : const UnauthorizedPage(),
+        '/admin/faq':
+            (context) =>
+                isAdmin ? const AdminFaqManagePage() : const UnauthorizedPage(),
+        '/admin/files':
+            (context) =>
+                isAdmin
+                    ? const AdminFileManagePage()
+                    : const UnauthorizedPage(),
+        '/admin/jobs':
+            (context) =>
+                isAdmin
+                    ? const AdminJobManagePage()
+                    : const UnauthorizedPage(),
+        '/admin/applicants':
+            (context) =>
+                isAdmin
+                    ? const AdminApplicantListPage()
+                    : const UnauthorizedPage(),
+        '/admin/products':
+            (context) =>
+                isAdmin
+                    ? const ServiceProductListPage()
+                    : const UnauthorizedPage(),
+        '/admin/board/manage':
+            (context) =>
+                isAdmin ? const BoardManagePage() : const UnauthorizedPage(),
+        '/admin/board/register':
+            (context) =>
+                isAdmin ? const BoardRegisterPage() : const UnauthorizedPage(),
+        '/admin/popup/manage':
+            (context) =>
+                isAdmin ? const PopupManagePage() : const UnauthorizedPage(),
+        '/admin/popup/register':
+            (context) =>
+                isAdmin ? const PopupRegisterPage() : const UnauthorizedPage(),
 
         // 권한 없음
         '/unauthorized': (context) => const UnauthorizedPage(),
@@ -209,9 +269,10 @@ class MyApp extends fr.ConsumerWidget {
         // 채용공고 동적 라우트
         switch (settings.name) {
           case '/job-detail':
-            final jobId = settings.arguments as int;
+            final jobId = settings.arguments;
+            final resolvedJobId = jobId is int ? jobId : int.tryParse(jobId?.toString() ?? '') ?? 0;
             return MaterialPageRoute(
-              builder: (context) => JobDetailPage(jobId: jobId),
+              builder: (context) => JobDetailPage(jobId: resolvedJobId),
             );
           case '/job-edit':
             final jobId = settings.arguments as int;
@@ -269,6 +330,31 @@ class MyApp extends fr.ConsumerWidget {
             return MaterialPageRoute(
               builder: (context) => InquiryFormPage(inquiry: inquiry),
             );
+
+          // 채용공고 등록/수정 폼 (Job 객체 전달 방식)
+          case '/job-form':
+            final job = settings.arguments as Job?;
+            return MaterialPageRoute(
+              builder: (context) => JobPostRegisterPage(jobId: job?.jobNo),
+            );
+        }
+
+        // 어드민 게시판 수정 동적 라우트: /admin/board/edit/123
+        final boardEditMatch = RegExp(r'^/admin/board/edit/(\d+)$').firstMatch(settings.name ?? '');
+        if (boardEditMatch != null) {
+          final boardId = int.parse(boardEditMatch.group(1)!);
+          return MaterialPageRoute(
+            builder: (_) => BoardEditPage(boardId: boardId),
+          );
+        }
+
+        // 어드민 팝업 수정 동적 라우트: /admin/popup/edit/123
+        final popupEditMatch = RegExp(r'^/admin/popup/edit/(\d+)$').firstMatch(settings.name ?? '');
+        if (popupEditMatch != null) {
+          final popupId = int.parse(popupEditMatch.group(1)!);
+          return MaterialPageRoute(
+            builder: (_) => PopupEditPage(popupId: popupId),
+          );
         }
 
         // 기존 공지사항 라우트 (호환성 유지)
