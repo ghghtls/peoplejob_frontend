@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
-import 'package:provider/single_child_widget.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:peoplejob_frontend/services/auth_service.dart';
@@ -27,7 +26,6 @@ class MockNoticeService extends Mock implements NoticeService {}
 class MockNavigatorObserver extends Mock implements NavigatorObserver {}
 
 class TestHelpers {
-  // 테스트용 MaterialApp 생성 (Provider.value 사용)
   static Widget createTestApp(
     Widget child, {
     MockAuthService? authService,
@@ -39,21 +37,7 @@ class TestHelpers {
     Map<String, WidgetBuilder>? routes,
     List<NavigatorObserver>? observers,
   }) {
-    final providers = <SingleChildWidget>[
-      if (authService != null) Provider<AuthService>.value(value: authService),
-      if (jobService != null) Provider<JobService>.value(value: jobService),
-      if (resumeService != null)
-        Provider<ResumeService>.value(value: resumeService),
-      if (boardService != null)
-        Provider<BoardService>.value(value: boardService),
-      if (applyService != null)
-        Provider<ApplyService>.value(value: applyService),
-      if (noticeService != null)
-        Provider<NoticeService>.value(value: noticeService),
-    ];
-
-    return MultiProvider(
-      providers: providers,
+    return ProviderScope(
       child: MaterialApp(
         home: child,
         routes: routes ?? const {},
@@ -62,7 +46,6 @@ class TestHelpers {
     );
   }
 
-  // 네비게이션 테스트용 앱 빌더 + 옵저버
   static (Widget app, MockNavigatorObserver observer) buildAppWithObserver(
     Widget child, {
     MockAuthService? authService,
@@ -88,7 +71,6 @@ class TestHelpers {
     return (app, observer);
   }
 
-  // 공통 모의 설정
   static void setupMockAuthService(MockAuthService mockAuthService) {
     when(mockAuthService.getToken()).thenAnswer((_) async => 'mock-token');
     when(mockAuthService.getUserNo()).thenAnswer((_) async => 1);
@@ -104,7 +86,6 @@ class TestHelpers {
     );
   }
 
-  // 텍스트 입력 헬퍼
   static Future<void> enterTextByKey(
     WidgetTester tester,
     Key key,
@@ -114,7 +95,6 @@ class TestHelpers {
     await tester.pumpAndSettle();
   }
 
-  // 버튼 탭 헬퍼
   static Future<void> tapButtonByKey(WidgetTester tester, Key key) async {
     await tester.tap(find.byKey(key));
     await tester.pumpAndSettle();
@@ -125,7 +105,6 @@ class TestHelpers {
     await tester.pumpAndSettle();
   }
 
-  // 드롭다운 선택 헬퍼
   static Future<void> selectDropdownItem(
     WidgetTester tester,
     String dropdownText,
@@ -137,7 +116,6 @@ class TestHelpers {
     await tester.pumpAndSettle();
   }
 
-  // 스크롤 헬퍼
   static Future<void> scrollToBottom(WidgetTester tester) async {
     final scrollable = find.byType(Scrollable);
     await tester.drag(scrollable, const Offset(0, -500));
@@ -150,7 +128,6 @@ class TestHelpers {
     await tester.pumpAndSettle();
   }
 
-  // 로딩 완료까지 대기
   static Future<void> waitForLoading(
     WidgetTester tester, {
     Duration step = const Duration(milliseconds: 100),
@@ -164,7 +141,6 @@ class TestHelpers {
     await tester.pumpAndSettle();
   }
 
-  // 다이얼로그 처리
   static Future<void> handleDialog(
     WidgetTester tester,
     String buttonText,
@@ -177,7 +153,6 @@ class TestHelpers {
     }
   }
 
-  // 메시지 확인
   static void expectSnackBar(String message) {
     expect(find.text(message), findsOneWidget);
   }
@@ -190,14 +165,12 @@ class TestHelpers {
     expect(find.text(message), findsOneWidget);
   }
 
-  // 네비게이션 확인 (Observer 기반)
   static void expectPushed(MockNavigatorObserver observer, {int times = 1}) {}
 
   static void expectNavigatedToPageText(String textOnNewPage) {
     expect(find.text(textOnNewPage), findsOneWidget);
   }
 
-  // 위젯 존재/미존재 확인 (Widget 한정)
   static void expectWidgetExists<T extends Widget>() {
     expect(find.byType(T), findsOneWidget);
   }
@@ -206,12 +179,10 @@ class TestHelpers {
     expect(find.byType(T), findsNothing);
   }
 
-  // 리스트 아이템 개수 확인
   static void expectListLength(Type widgetType, int expectedLength) {
     expect(find.byType(widgetType), findsNWidgets(expectedLength));
   }
 
-  // 텍스트 포함 확인
   static void expectTextContains(String partialText) {
     expect(find.textContaining(partialText), findsOneWidget);
   }
@@ -222,36 +193,19 @@ class TestHelpers {
     }
   }
 
-  // Mock 서비스 기본 스텁 (실제 서비스 시그니처와 일치하도록 최소화)
-  static void setupMockJobService(MockJobService mockJobService) {
-    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
-    // 예시:
-    // when(mockJobService.getAllJobs()).thenAnswer((_) async => []);
-  }
+  static void setupMockJobService(MockJobService mockJobService) {}
 
-  static void setupMockResumeService(MockResumeService mockResumeService) {
-    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
-  }
+  static void setupMockResumeService(MockResumeService mockResumeService) {}
 
-  static void setupMockBoardService(MockBoardService mockBoardService) {
-    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
-  }
+  static void setupMockBoardService(MockBoardService mockBoardService) {}
 
   static void setupMockApplyService(MockApplyService mockApplyService) {
-    // ▶ ApplyService에 실제 존재하는 메서드만 stub
-    // 파라미터가 없는 메서드만 기본 stub 설정
     when(mockApplyService.getMyApplications()).thenAnswer((_) async => []);
     when(mockApplyService.getAllApplications()).thenAnswer((_) async => []);
-
-    // 파라미터가 있는 메서드는 테스트에서 직접 설정하세요
-    // 예: when(mockApplyService.getApplicationsByResume(1)).thenAnswer((_) async => []);
   }
 
-  static void setupMockNoticeService(MockNoticeService mockNoticeService) {
-    // 필요시 프로젝트 실제 메서드명에 맞춰 수정하세요.
-  }
+  static void setupMockNoticeService(MockNoticeService mockNoticeService) {}
 
-  // 테스트 데이터
   static Map<String, dynamic> createTestJob({
     int id = 1,
     String title = '테스트 채용공고',
@@ -309,7 +263,6 @@ class TestHelpers {
     };
   }
 
-  // ── 시뮬레이션 도우미 (특정 메서드를 직접 stub 하는 것을 권장) ──
   @Deprecated('특정 메서드에 대해 when(...).thenThrow(...)를 직접 사용하세요.')
   static void simulateNetworkError(Mock mockService) {}
 
@@ -321,14 +274,12 @@ class TestHelpers {
     when(mockAuthService.getUserInfo()).thenAnswer((_) async => {});
   }
 
-  // 커스텀 매처들
   static Matcher hasTextStyle(TextStyle expectedStyle) =>
       _HasTextStyle(expectedStyle);
   static Matcher isEnabled() => const _IsEnabled();
   static Matcher isDisabled() => const _IsDisabled();
 }
 
-// 커스텀 매처 구현
 class _HasTextStyle extends Matcher {
   final TextStyle expected;
   _HasTextStyle(this.expected);

@@ -1,353 +1,264 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:dio/dio.dart';
+import 'dart:convert';
 
-class AuthService {
-  // 주입 가능한 의존성들
-  final FlutterSecureStorage _storage;
-  final http.Client _client;
-  final Dio _dio;
+import 'package:peoplejob_frontend/services/auth_service.dart';
 
-  // 구성용
-  final String _baseUrl;
+class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 
-  AuthService({
-    http.Client? client,
-    FlutterSecureStorage? storage,
-    Dio? dio,
-    String? baseUrl,
-  }) : _storage = storage ?? const FlutterSecureStorage(),
-       _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? (dotenv.env['API_URL'] ?? 'http://localhost:9000'),
-       _dio =
-           dio ??
-           Dio(
-             BaseOptions(
-               baseUrl:
-                   baseUrl ??
-                   (dotenv.env['API_URL'] ?? 'http://localhost:9000'),
-             ),
-           ) {
-    // JWT 자동 첨부 인터셉터 (Dio 전용)
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final token = await _storage.read(key: 'jwt');
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          handler.next(options);
-        },
-      ),
-    );
-  }
+class MockHttpClient extends Mock implements http.Client {}
 
-  /* ========================= 기본 인증/저장소 유틸 ========================= */
+void main() {
+  group('AuthService Tests', () {
+    late AuthService authService;
+    late MockFlutterSecureStorage mockStorage;
+    late MockHttpClient mockClient;
 
-  Future<void> logout() async {
-    await _storage.deleteAll();
-  }
+    const baseUrl = 'http://localhost:5000';
 
-  Future<String?> getToken() async => _storage.read(key: 'jwt');
-
-  Future<int?> getUserNo() async {
-    final userNoStr = await _storage.read(key: 'userNo');
-    return userNoStr != null ? int.tryParse(userNoStr) : null;
-  }
-
-  Future<Map<String, String?>> getUserInfo() async {
-    return {
-      'userid': await _storage.read(key: 'userid'),
-      'userNo': await _storage.read(key: 'userNo'),
-      'role': await _storage.read(key: 'role'),
-      'userType': await _storage.read(key: 'userType'),
-      'name': await _storage.read(key: 'name'),
-      'email': await _storage.read(key: 'email'),
-    };
-  }
-
-  Map<String, String> _jsonHeaders({String? token}) => {
-    if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    'Content-Type': 'application/json',
-  };
-
-  /* ============================== 인증 로직 ============================== */
-
-  // JWT 로그인
-  Future<Map<String, dynamic>?> login({
-    required String userid,
-    required String password,
-  }) async {
-    try {
-      final res = await _client.post(
-        Uri.parse('$_baseUrl/api/users/login'),
-        headers: _jsonHeaders(),
-        body: jsonEncode({'userid': userid, 'password': password}),
+    setUp(() {
+      mockStorage = MockFlutterSecureStorage();
+      mockClient = MockHttpClient();
+      authService = AuthService(
+        client: mockClient,
+        storage: mockStorage,
+        baseUrl: baseUrl,
       );
+    });
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
+    // ── 로그아웃 ────────────────────────────────────────────
+    group('로그아웃', () {
+      test('logout() — storage.deleteAll 호출', () async {
+        when(mockStorage.deleteAll()).thenAnswer((_) async {});
 
-        await _storage.write(key: 'jwt', value: data['token']);
-        await _storage.write(key: 'userid', value: data['userid']);
-        await _storage.write(key: 'userNo', value: data['userNo'].toString());
-        await _storage.write(key: 'role', value: data['role']);
-        await _storage.write(key: 'userType', value: data['userType']);
-        await _storage.write(key: 'name', value: data['name']);
-        await _storage.write(key: 'email', value: data['email']);
+        await authService.logout();
 
-        return Map<String, dynamic>.from(data);
-      }
-      return null;
-    } catch (e) {
-      debugPrint('로그인 오류: $e');
-      return null;
-    }
-  }
+        verify(mockStorage.deleteAll()).called(1);
+      });
+    });
 
-  /* ============================= 회원 정보 ============================== */
+    // ── 토큰/사용자 정보 조회 ───────────────────────────────
+    group('로컬 저장소 조회', () {
+      test('getToken() — jwt 키 반환', () async {
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'test-token');
 
-  Future<Map<String, dynamic>?> getUserProfile() async {
-    try {
-      final userNo = await getUserNo();
-      if (userNo == null) {
-        throw Exception('사용자 정보를 찾을 수 없습니다');
-      }
+        final token = await authService.getToken();
 
-      final token = await getToken();
-      final res = await _client.get(
-        Uri.parse('$_baseUrl/api/users/profile/$userNo'),
-        headers: _jsonHeaders(token: token),
-      );
-
-      if (res.statusCode == 200) {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
-      }
-      throw Exception('회원 정보 조회 실패: ${res.statusCode}');
-    } catch (e) {
-      debugPrint('회원 정보 조회 오류: $e');
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>?> updateUserProfile({
-    required String name,
-    required String email,
-    String? phone,
-    String? address,
-    String? detailAddress,
-    String? zipcode,
-    // 기업회원 전용
-    String? companyName,
-    String? businessNumber,
-    String? companyPhone,
-    String? companyAddress,
-    String? ceoName,
-    String? companyType,
-    int? employeeCount,
-    String? establishedYear,
-    String? website,
-    String? companyDescription,
-  }) async {
-    try {
-      final userNo = await getUserNo();
-      if (userNo == null) {
-        throw Exception('사용자 정보를 찾을 수 없습니다');
-      }
-
-      final token = await getToken();
-      final body = <String, dynamic>{
-        'name': name,
-        'email': email,
-        if (phone != null) 'phone': phone,
-        if (address != null) 'address': address,
-        if (detailAddress != null) 'detailAddress': detailAddress,
-        if (zipcode != null) 'zipcode': zipcode,
-        if (companyName != null) 'companyName': companyName,
-        if (businessNumber != null) 'businessNumber': businessNumber,
-        if (companyPhone != null) 'companyPhone': companyPhone,
-        if (companyAddress != null) 'companyAddress': companyAddress,
-        if (ceoName != null) 'ceoName': ceoName,
-        if (companyType != null) 'companyType': companyType,
-        if (employeeCount != null) 'employeeCount': employeeCount,
-        if (establishedYear != null) 'establishedYear': establishedYear,
-        if (website != null) 'website': website,
-        if (companyDescription != null)
-          'companyDescription': companyDescription,
-      };
-
-      final res = await _client.put(
-        Uri.parse('$_baseUrl/api/users/profile/$userNo'),
-        headers: _jsonHeaders(token: token),
-        body: jsonEncode(body),
-      );
-
-      if (res.statusCode == 200) {
-        final data = Map<String, dynamic>.from(jsonDecode(res.body));
-
-        // 로컬 저장소 업데이트
-        final user = data['user'];
-        if (user is Map) {
-          if (user['name'] != null) {
-            await _storage.write(key: 'name', value: user['name'] as String);
-          }
-          if (user['email'] != null) {
-            await _storage.write(key: 'email', value: user['email'] as String);
-          }
-        }
-        return data;
-      }
-      throw Exception('회원 정보 수정 실패: ${res.statusCode}');
-    } catch (e) {
-      debugPrint('회원 정보 수정 오류: $e');
-      rethrow;
-    }
-  }
-
-  Future<bool> changePassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
-    try {
-      final userNo = await getUserNo();
-      if (userNo == null) {
-        throw Exception('사용자 정보를 찾을 수 없습니다');
-      }
-
-      final token = await getToken();
-      final res = await _client.put(
-        Uri.parse('$_baseUrl/api/users/password/$userNo'),
-        headers: _jsonHeaders(token: token),
-        body: jsonEncode({
-          'currentPassword': currentPassword,
-          'newPassword': newPassword,
-        }),
-      );
-
-      if (res.statusCode == 200) return true;
-
-      try {
-        final err = jsonDecode(res.body);
-        throw Exception(err['error'] ?? '비밀번호 변경 실패');
-      } catch (_) {
-        throw Exception('비밀번호 변경 실패: ${res.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('비밀번호 변경 오류: $e');
-      rethrow;
-    }
-  }
-
-  /* =========================== 프로필 이미지 ============================ */
-
-  Future<String?> uploadProfileImage(File imageFile) async {
-    try {
-      final userNo = await getUserNo();
-      if (userNo == null) {
-        throw Exception('사용자 정보를 찾을 수 없습니다');
-      }
-      final token = await getToken();
-
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
-          imageFile.path,
-          filename: imageFile.path.split('/').last,
-        ),
+        expect(token, 'test-token');
+        verify(mockStorage.read(key: 'jwt')).called(1);
       });
 
-      final res = await _dio.post(
-        '/api/users/profile/$userNo/image',
-        data: formData,
-        options: Options(
-          headers: {
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
-          },
-        ),
-      );
+      test('getToken() — 토큰 없으면 null 반환', () async {
+        when(mockStorage.read(key: 'jwt')).thenAnswer((_) async => null);
 
-      if (res.statusCode == 200) {
-        final data = res.data;
-        if (data is Map && data['imageUrl'] is String) {
-          return data['imageUrl'] as String;
-        }
-        return null;
-      }
-      throw Exception('프로필 이미지 업로드 실패');
-    } catch (e) {
-      debugPrint('프로필 이미지 업로드 오류: $e');
-      rethrow;
-    }
-  }
+        final token = await authService.getToken();
 
-  Future<bool> deleteProfileImage() async {
-    try {
-      final userNo = await getUserNo();
-      if (userNo == null) {
-        throw Exception('사용자 정보를 찾을 수 없습니다');
-      }
+        expect(token, isNull);
+      });
 
-      final token = await getToken();
-      final res = await _client.delete(
-        Uri.parse('$_baseUrl/api/users/profile/$userNo/image'),
-        headers: _jsonHeaders(token: token),
-      );
-      return res.statusCode == 200;
-    } catch (e) {
-      debugPrint('프로필 이미지 삭제 오류: $e');
-      return false;
-    }
-  }
+      test('getUserNo() — 숫자 파싱 성공', () async {
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => '42');
 
-  /* =============================== 기타 ================================ */
+        final userNo = await authService.getUserNo();
 
-  Future<bool> deleteAccount() async {
-    try {
-      final userNo = await getUserNo();
-      if (userNo == null) {
-        throw Exception('사용자 정보를 찾을 수 없습니다');
-      }
+        expect(userNo, 42);
+      });
 
-      final token = await getToken();
-      final res = await _client.delete(
-        Uri.parse('$_baseUrl/api/users/profile/$userNo'),
-        headers: _jsonHeaders(token: token),
-      );
+      test('getUserNo() — 저장값 없으면 null', () async {
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => null);
 
-      if (res.statusCode == 200) {
-        await logout();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      debugPrint('회원 탈퇴 오류: $e');
-      return false;
-    }
-  }
+        final userNo = await authService.getUserNo();
 
-  // 인증된 요청 헬퍼
-  Future<http.Response> authenticatedGet(String endpoint) async {
-    final token = await getToken();
-    return _client.get(
-      Uri.parse('$_baseUrl$endpoint'),
-      headers: _jsonHeaders(token: token),
-    );
-  }
+        expect(userNo, isNull);
+      });
 
-  Future<http.Response> authenticatedPost(
-    String endpoint,
-    Map<String, dynamic> body,
-  ) async {
-    final token = await getToken();
-    return _client.post(
-      Uri.parse('$_baseUrl$endpoint'),
-      headers: _jsonHeaders(token: token),
-      body: jsonEncode(body),
-    );
-  }
+      test('getUserInfo() — 모든 키 반환', () async {
+        when(mockStorage.read(key: 'userid')).thenAnswer((_) async => 'user1');
+        when(mockStorage.read(key: 'userNo')).thenAnswer((_) async => '1');
+        when(mockStorage.read(key: 'role')).thenAnswer((_) async => 'USER');
+        when(mockStorage.read(key: 'userType'))
+            .thenAnswer((_) async => 'INDIVIDUAL');
+        when(mockStorage.read(key: 'name')).thenAnswer((_) async => '홍길동');
+        when(mockStorage.read(key: 'email'))
+            .thenAnswer((_) async => 'test@example.com');
+
+        final info = await authService.getUserInfo();
+
+        expect(info['userid'], 'user1');
+        expect(info['userNo'], '1');
+        expect(info['role'], 'USER');
+        expect(info['name'], '홍길동');
+        expect(info['email'], 'test@example.com');
+      });
+    });
+
+    // ── 로그인 ──────────────────────────────────────────────
+    group('로그인', () {
+      test('login() 성공 — 토큰 및 사용자 정보 저장', () async {
+        final responseBody = {
+          'token': 'jwt-token-123',
+          'userid': 'user1',
+          'userNo': 1,
+          'role': 'USER',
+          'userType': 'INDIVIDUAL',
+          'name': '홍길동',
+          'email': 'test@example.com',
+        };
+
+        when(
+          mockClient.post(
+            Uri.parse('$baseUrl/api/users/login'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer(
+          (_) async => http.Response(jsonEncode(responseBody), 200),
+        );
+
+        when(mockStorage.write(key: 'jwt', value: 'jwt-token-123')).thenAnswer((_) async {});
+        when(mockStorage.write(key: 'userid', value: 'user1')).thenAnswer((_) async {});
+        when(mockStorage.write(key: 'userNo', value: '1')).thenAnswer((_) async {});
+        when(mockStorage.write(key: 'role', value: 'USER')).thenAnswer((_) async {});
+        when(mockStorage.write(key: 'userType', value: 'INDIVIDUAL')).thenAnswer((_) async {});
+        when(mockStorage.write(key: 'name', value: '홍길동')).thenAnswer((_) async {});
+        when(mockStorage.write(key: 'email', value: 'test@example.com')).thenAnswer((_) async {});
+
+        final result = await authService.login(
+          userid: 'user1',
+          password: 'pass123',
+        );
+
+        expect(result, isNotNull);
+        expect(result!['token'], 'jwt-token-123');
+        expect(result['userid'], 'user1');
+
+        verify(mockStorage.write(key: 'jwt', value: 'jwt-token-123')).called(1);
+        verify(mockStorage.write(key: 'userNo', value: '1')).called(1);
+      });
+
+      test('login() 실패 (401) — null 반환', () async {
+        when(
+          mockClient.post(
+            Uri.parse('$baseUrl/api/users/login'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer(
+          (_) async => http.Response('{"message":"인증 실패"}', 401),
+        );
+
+        final result = await authService.login(
+          userid: 'wrong',
+          password: 'wrong',
+        );
+
+        expect(result, isNull);
+        // 401 응답 시 어떤 키에도 write 하지 않아야 함
+        verifyNever(mockStorage.write(key: 'jwt', value: 'jwt-token-123'));
+      });
+
+      test('login() 네트워크 오류 — null 반환', () async {
+        when(
+          mockClient.post(
+            Uri.parse('$baseUrl/api/users/login'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenThrow(Exception('Network error'));
+
+        final result = await authService.login(
+          userid: 'user1',
+          password: 'pass123',
+        );
+
+        expect(result, isNull);
+      });
+    });
+
+    // ── 비밀번호 변경 ────────────────────────────────────────
+    group('비밀번호 변경', () {
+      test('changePassword() 성공', () async {
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => '1');
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'test-token');
+        when(
+          mockClient.put(
+            Uri.parse('$baseUrl/api/users/password/1'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response('{}', 200));
+
+        final result = await authService.changePassword(
+          currentPassword: 'old123',
+          newPassword: 'new456',
+        );
+
+        expect(result, isTrue);
+      });
+
+      test('changePassword() 실패 (400) — 예외 throw', () async {
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => '1');
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'test-token');
+        when(
+          mockClient.put(
+            Uri.parse('$baseUrl/api/users/password/1'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer(
+          (_) async =>
+              http.Response('{"error":"현재 비밀번호가 일치하지 않습니다"}', 400),
+        );
+
+        expect(
+          () => authService.changePassword(
+            currentPassword: 'wrong',
+            newPassword: 'new456',
+          ),
+          throwsA(isA<Exception>()),
+        );
+      });
+    });
+
+    // ── 회원 탈퇴 ────────────────────────────────────────────
+    group('회원 탈퇴', () {
+      test('deleteAccount() 성공 — logout 호출', () async {
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => '1');
+        when(mockStorage.read(key: 'jwt'))
+            .thenAnswer((_) async => 'test-token');
+        when(
+          mockClient.delete(
+            Uri.parse('$baseUrl/api/users/profile/1'),
+            headers: anyNamed('headers'),
+          ),
+        ).thenAnswer((_) async => http.Response('{}', 200));
+        when(mockStorage.deleteAll()).thenAnswer((_) async {});
+
+        final result = await authService.deleteAccount();
+
+        expect(result, isTrue);
+        verify(mockStorage.deleteAll()).called(1);
+      });
+
+      test('deleteAccount() userNo 없음 — 예외 throw', () async {
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => null);
+
+        expect(
+          () => authService.deleteAccount(),
+          throwsA(isA<Exception>()),
+        );
+      });
+    });
+  });
 }
