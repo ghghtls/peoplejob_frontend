@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'widgets/popup_register_form.dart';
+import '../../../widgets/app_bar.dart';
 
 class PopupEditPage extends StatelessWidget {
   final int popupId;
@@ -8,12 +9,11 @@ class PopupEditPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: popupId를 기반으로 팝업 상세 정보 불러오기 (API 연동 예정)
-
     return Scaffold(
-      appBar: AppBar(title: Text('팝업 수정 (#$popupId)')),
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: buildCommonAppBar(title: '팝업 수정 (#$popupId)', showHomeButton: false),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: PopupRegisterForm(
           isEdit: true,
           initialValues: {
@@ -23,7 +23,7 @@ class PopupEditPage extends StatelessWidget {
             'endDate': DateTime(2025, 5, 31),
             'imagePath': 'assets/sample.png',
           },
-        ), // TODO: 수정용으로 변형 필요
+        ),
       ),
     );
   }
