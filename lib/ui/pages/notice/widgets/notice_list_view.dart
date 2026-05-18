@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../data/model/notice.dart';
 
 class NoticeListView extends StatelessWidget {
@@ -17,176 +17,98 @@ class NoticeListView extends StatelessWidget {
     this.hasMore = false,
   });
 
+  static const Color _blue = Color(0xFF0B5FFF);
+  static const Color _label = Color(0xFF0B1220);
+  static const Color _secondary = Color(0xFF8E8E93);
+  static const Color _red = Color(0xFFE5342F);
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       controller: scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       itemCount: notices.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= notices.length) {
-          // 로딩 인디케이터
           return const Padding(
             padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5)),
           );
         }
-
         final notice = notices[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _NoticeCard(
-            notice: notice,
-            onTap: () => onNoticeTap(notice.noticeNo!),
+        final isImportant = notice.isImportantNotice;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: isImportant ? Border.all(color: _red.withValues(alpha: 0.3), width: 1) : null,
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: () => onNoticeTap(notice.noticeNo!),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (isImportant)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text('중요',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _red)),
+                          ),
+                        if (isImportant) const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(notice.title,
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600,
+                                  color: isImportant ? _red : _label, letterSpacing: -0.3),
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                        ),
+                        if (notice.hasAttachment) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.attach_file_rounded, size: 15, color: _secondary.withValues(alpha: 0.7)),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(notice.getContentSummary(),
+                        style: const TextStyle(fontSize: 13, color: _secondary, height: 1.4),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline_rounded, size: 12, color: _secondary),
+                        const SizedBox(width: 3),
+                        Text(notice.writer, style: const TextStyle(fontSize: 11, color: _secondary)),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.schedule_rounded, size: 12, color: _secondary),
+                        const SizedBox(width: 3),
+                        Text(notice.formattedDate, style: const TextStyle(fontSize: 11, color: _secondary)),
+                        const Spacer(),
+                        const Icon(Icons.visibility_outlined, size: 12, color: _secondary),
+                        const SizedBox(width: 3),
+                        Text('${notice.viewCount ?? 0}', style: const TextStyle(fontSize: 11, color: _secondary)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
-    );
-  }
-}
-
-class _NoticeCard extends StatelessWidget {
-  final Notice notice;
-  final VoidCallback onTap;
-
-  const _NoticeCard({required this.notice, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side:
-            notice.isImportantNotice
-                ? BorderSide(color: Colors.red.shade300, width: 1)
-                : BorderSide.none,
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration:
-              notice.isImportantNotice
-                  ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: [Colors.red.shade50, Colors.white],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  )
-                  : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 상단: 중요 배지와 첨부파일 아이콘
-              Row(
-                children: [
-                  if (notice.isImportantNotice)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade600,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        '중요',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  const Spacer(),
-                  if (notice.hasAttachment)
-                    Icon(
-                      Icons.attach_file,
-                      size: 16,
-                      color: Colors.grey.shade600,
-                    ),
-                ],
-              ),
-
-              if (notice.isImportantNotice || notice.hasAttachment)
-                const SizedBox(height: 8),
-
-              // 제목
-              Text(
-                notice.title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color:
-                      notice.isImportantNotice
-                          ? Colors.red.shade700
-                          : Colors.black87,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              const SizedBox(height: 8),
-
-              // 내용 미리보기
-              Text(
-                notice.getContentSummary(),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                  height: 1.4,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              const SizedBox(height: 12),
-
-              // 하단: 메타 정보
-              Row(
-                children: [
-                  Icon(Icons.person, size: 12, color: Colors.grey.shade400),
-                  const SizedBox(width: 4),
-                  Text(
-                    notice.writer,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(Icons.schedule, size: 12, color: Colors.grey.shade400),
-                  const SizedBox(width: 4),
-                  Text(
-                    notice.formattedDate,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.visibility,
-                        size: 12,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${notice.viewCount ?? 0}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

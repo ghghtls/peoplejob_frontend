@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/provider/notice_provider.dart';
 import 'notice_detail_page.dart';
 import 'widgets/notice_list_view.dart';
-import 'widgets/empty_notice_message.dart';
+import '../../widgets/app_bar.dart';
 
 class NoticeListPage extends ConsumerStatefulWidget {
   const NoticeListPage({super.key});
@@ -13,17 +13,19 @@ class NoticeListPage extends ConsumerStatefulWidget {
 }
 
 class _NoticeListPageState extends ConsumerState<NoticeListPage> {
-  final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
+  static const Color _blue = Color(0xFF0B5FFF);
+  static const Color _label = Color(0xFF0B1220);
+  static const Color _secondary = Color(0xFF8E8E93);
+  static const Color _fieldBg = Color(0xFFF2F2F7);
+  static const Color _red = Color(0xFFE5342F);
+
+  final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadNotices();
-    });
-
-    // 무한 스크롤 설정
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadNotices());
     _scrollController.addListener(_onScroll);
   }
 
@@ -39,8 +41,7 @@ class _NoticeListPageState extends ConsumerState<NoticeListPage> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
       ref.read(noticeProvider.notifier).loadMoreNotices();
     }
   }
@@ -62,9 +63,7 @@ class _NoticeListPageState extends ConsumerState<NoticeListPage> {
   Future<void> _navigateToDetail(int noticeId) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => NoticeDetailPage(noticeId: noticeId),
-      ),
+      MaterialPageRoute(builder: (_) => NoticeDetailPage(noticeId: noticeId)),
     );
   }
 
@@ -73,117 +72,117 @@ class _NoticeListPageState extends ConsumerState<NoticeListPage> {
     final noticeState = ref.watch(noticeProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('공지사항'),
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-        elevation: 2,
+      backgroundColor: _fieldBg,
+      appBar: buildCommonAppBar(
+        title: '공지사항',
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadNotices),
+          IconButton(
+            onPressed: _loadNotices,
+            icon: const Icon(Icons.refresh_rounded, color: _secondary),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.all(8),
+            ),
+          ),
         ],
       ),
       body: Column(
         children: [
-          // 검색 바
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade200,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: '공지사항 검색',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon:
-                          noticeState.isSearching
-                              ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: _clearSearch,
-                              )
-                              : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.blue.shade400),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    onSubmitted: (_) => _onSearch(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _onSearch,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade600,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text('검색'),
-                ),
-              ],
-            ),
-          ),
+            const SizedBox(height: 10),
 
-          // 검색 결과 표시
-          if (noticeState.isSearching)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: Colors.blue.shade50,
+            // 검색 바
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Icon(Icons.search, size: 16, color: Colors.blue.shade600),
-                  const SizedBox(width: 8),
-                  Text(
-                    "'${noticeState.searchKeyword}' 검색 결과 (${noticeState.notices.length}건)",
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: const TextStyle(fontSize: 14, color: _label),
+                        decoration: InputDecoration(
+                          hintText: '공지사항 검색',
+                          hintStyle: const TextStyle(color: _secondary, fontSize: 14),
+                          prefixIcon: const Icon(Icons.search_rounded, color: _secondary, size: 18),
+                          suffixIcon: noticeState.isSearching
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear_rounded, size: 16, color: _secondary),
+                                  onPressed: _clearSearch,
+                                  style: IconButton.styleFrom(minimumSize: Size.zero, padding: const EdgeInsets.all(8)),
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onSubmitted: (_) => _onSearch(),
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _clearSearch,
-                    child: const Text('전체보기'),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: _onSearch,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      child: const Text('검색', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                    ),
                   ),
                 ],
               ),
             ),
 
-          // 공지사항 목록
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadNotices,
-              child: Builder(
-                builder: (context) {
+            // 검색 결과 배너
+            if (noticeState.isSearching) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _blue.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search_rounded, size: 14, color: _blue),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text("'${noticeState.searchKeyword}' 검색 결과 (${noticeState.notices.length}건)",
+                            style: const TextStyle(fontSize: 13, color: _blue, fontWeight: FontWeight.w500)),
+                      ),
+                      TextButton(
+                        onPressed: _clearSearch,
+                        style: TextButton.styleFrom(foregroundColor: _blue, minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                        child: const Text('전체보기', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+
+            // 목록
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _loadNotices,
+                color: _blue,
+                child: Builder(builder: (context) {
                   if (noticeState.isLoading && noticeState.notices.isEmpty) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5));
                   }
 
                   if (noticeState.errorMessage != null) {
@@ -191,24 +190,24 @@ class _NoticeListPageState extends ConsumerState<NoticeListPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 64,
-                            color: Colors.red.shade300,
+                          Container(
+                            width: 72, height: 72,
+                            decoration: BoxDecoration(color: _fieldBg, borderRadius: BorderRadius.circular(20)),
+                            child: const Icon(Icons.error_outline_rounded, size: 36, color: _red),
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            noticeState.errorMessage!,
-                            style: const TextStyle(fontSize: 16),
-                            textAlign: TextAlign.center,
-                          ),
+                          Text(noticeState.errorMessage!,
+                              style: const TextStyle(fontSize: 15, color: _secondary), textAlign: TextAlign.center),
                           const SizedBox(height: 16),
-                          ElevatedButton(
+                          OutlinedButton(
                             onPressed: () {
                               ref.read(noticeProvider.notifier).clearError();
                               _loadNotices();
                             },
-                            child: const Text('다시 시도'),
+                            style: OutlinedButton.styleFrom(foregroundColor: _blue,
+                                side: const BorderSide(color: _blue, width: 1.5),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            child: const Text('다시 시도', style: TextStyle(fontWeight: FontWeight.w600)),
                           ),
                         ],
                       ),
@@ -216,7 +215,21 @@ class _NoticeListPageState extends ConsumerState<NoticeListPage> {
                   }
 
                   if (!noticeState.hasNotices) {
-                    return const EmptyNoticeMessage();
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 72, height: 72,
+                            decoration: BoxDecoration(color: _fieldBg, borderRadius: BorderRadius.circular(20)),
+                            child: const Icon(Icons.notifications_none_rounded, size: 36, color: _secondary),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text('공지사항이 없습니다',
+                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _label)),
+                        ],
+                      ),
+                    );
                   }
 
                   return NoticeListView(
@@ -226,12 +239,11 @@ class _NoticeListPageState extends ConsumerState<NoticeListPage> {
                     isLoading: noticeState.isLoading,
                     hasMore: noticeState.hasMore,
                   );
-                },
+                }),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
     );
   }
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:peoplejob_frontend/data/provider/notification_provider.dart';
 import 'package:peoplejob_frontend/ui/pages/notification/notification_page.dart';
-import 'package:provider/provider.dart';
 
 /// 알림 아이콘과 뱃지를 표시하는 위젯
-class NotificationBadge extends StatefulWidget {
+class NotificationBadge extends ConsumerStatefulWidget {
   final Color? iconColor;
   final double? iconSize;
 
@@ -15,86 +15,72 @@ class NotificationBadge extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<NotificationBadge> createState() => _NotificationBadgeState();
+  ConsumerState<NotificationBadge> createState() => _NotificationBadgeState();
 }
 
-class _NotificationBadgeState extends State<NotificationBadge> {
+class _NotificationBadgeState extends ConsumerState<NotificationBadge> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshUnreadCount();
+      ref.read(notificationProvider.notifier).refreshUnreadCount();
     });
-  }
-
-  void _refreshUnreadCount() {
-    context.read<NotificationProvider>().refreshUnreadCount();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<NotificationProvider>(
-      builder: (context, provider, child) {
-        return Stack(
-          children: [
-            IconButton(
-              icon: Icon(
-                Icons.notifications,
-                color: widget.iconColor ?? Colors.white,
-                size: widget.iconSize ?? 24,
+    final unreadCount = ref.watch(notificationProvider).unreadCount;
+    return Stack(
+      children: [
+        IconButton(
+          icon: Icon(
+            Icons.notifications,
+            color: widget.iconColor ?? Colors.white,
+            size: widget.iconSize ?? 24,
+          ),
+          onPressed: () => _navigateToNotifications(context),
+          tooltip: '알림 보기',
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
               ),
-              onPressed: () => _navigateToNotifications(context),
-              tooltip: '알림 보기',
-            ),
-            if (provider.unreadCount > 0)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Text(
-                    provider.unreadCount > 99
-                        ? '99+'
-                        : provider.unreadCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
-          ],
-        );
-      },
+            ),
+          ),
+      ],
     );
   }
 
   void _navigateToNotifications(BuildContext context) {
     Navigator.of(context)
-        .push(
-          MaterialPageRoute(
-            builder: (context) => const NotificationPage(),
-          ),
-        )
+        .push(MaterialPageRoute(builder: (context) => const NotificationPage()))
         .then((_) {
-          // 알림 페이지에서 돌아온 후 개수 새로고침
-          _refreshUnreadCount();
+          ref.read(notificationProvider.notifier).refreshUnreadCount();
         });
   }
 }
 
 /// 최근 알림을 간단히 표시하는 드롭다운 위젯
-class NotificationDropdown extends StatefulWidget {
+class NotificationDropdown extends ConsumerStatefulWidget {
   final Widget child;
 
   const NotificationDropdown({
@@ -103,10 +89,10 @@ class NotificationDropdown extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<NotificationDropdown> createState() => _NotificationDropdownState();
+  ConsumerState<NotificationDropdown> createState() => _NotificationDropdownState();
 }
 
-class _NotificationDropdownState extends State<NotificationDropdown> {
+class _NotificationDropdownState extends ConsumerState<NotificationDropdown> {
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
 
@@ -128,21 +114,15 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
     if (_isOpen) return;
     _overlayEntry = _createOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
-    setState(() {
-      _isOpen = true;
-    });
-
-    // 최근 알림 로드
-    context.read<NotificationProvider>().loadUnreadNotifications();
+    setState(() { _isOpen = true; });
+    ref.read(notificationProvider.notifier).loadUnreadNotifications();
   }
 
   void _closeDropdown() {
     _overlayEntry?.remove();
     _overlayEntry = null;
     if (_isOpen) {
-      setState(() {
-        _isOpen = false;
-      });
+      setState(() { _isOpen = false; });
     }
   }
 
@@ -152,132 +132,117 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
     final offset = renderBox.localToGlobal(Offset.zero);
 
     return OverlayEntry(
-      builder:
-          (context) => Positioned(
-            left: offset.dx,
-            top: offset.dy + size.height,
-            width: 300,
-            child: Material(
-              elevation: 8,
+      builder: (context) => Positioned(
+        left: offset.dx,
+        top: offset.dy + size.height,
+        width: 300,
+        child: Material(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 400,
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(8),
-              child: Container(
-                height: 400,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Colors.blue,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          topRight: Radius.circular(8),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        '최근 알림',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          const Text(
-                            '최근 알림',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {
+                          _closeDropdown();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationPage(),
                             ),
-                          ),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () {
-                              _closeDropdown();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => const NotificationPage(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              '모두 보기',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
+                          );
+                        },
+                        child: const Text('모두 보기', style: TextStyle(color: Colors.white)),
                       ),
-                    ),
-                    Expanded(
-                      child: Consumer<NotificationProvider>(
-                        builder: (context, provider, child) {
-                          if (provider.unreadNotifications.isEmpty) {
-                            return const Center(child: Text('새로운 알림이 없습니다.'));
-                          }
-
-                          // 안전하게 5개까지만 잘라서 사용
-                          final items =
-                              provider.unreadNotifications.take(5).toList();
-
-                          return ListView.builder(
-                            itemCount: items.length,
-                            itemBuilder: (context, index) {
-                              final notification = items[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: _getTypeColor(
-                                    notification.type,
-                                  ),
-                                  child: Text(
-                                    _getTypeIcon(notification.type),
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                                title: Text(
-                                  notification.title,
-                                  style: const TextStyle(fontSize: 14),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                subtitle: Text(
-                                  notification.message,
-                                  style: const TextStyle(fontSize: 12),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: Text(
-                                  notification.timeAgo,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                onTap: () {
-                                  _closeDropdown();
-                                  provider.markAsRead(notification.id);
-                                  // 알림 관련 페이지로 이동
-                                  if (notification.actionUrl != null) {
-                                    _navigateToActionUrl(
-                                      notification.actionUrl!,
-                                    );
-                                  }
-                                },
-                              );
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Consumer(
+                    builder: (context, overlayRef, _) {
+                      final state = overlayRef.watch(notificationProvider);
+                      if (state.unreadNotifications.isEmpty) {
+                        return const Center(child: Text('새로운 알림이 없습니다.'));
+                      }
+                      final items = state.unreadNotifications.take(5).toList();
+                      return ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final notification = items[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: _getTypeColor(notification.type),
+                              child: Text(
+                                _getTypeIcon(notification.type),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            title: Text(
+                              notification.title,
+                              style: const TextStyle(fontSize: 14),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              notification.message,
+                              style: const TextStyle(fontSize: 12),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Text(
+                              notification.timeAgo,
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                            onTap: () {
+                              _closeDropdown();
+                              overlayRef.read(notificationProvider.notifier).markAsRead(notification.id);
+                              if (notification.actionUrl != null) {
+                                _navigateToActionUrl(notification.actionUrl!);
+                              }
                             },
                           );
                         },
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
+        ),
+      ),
     );
   }
 
@@ -288,44 +253,29 @@ class _NotificationDropdownState extends State<NotificationDropdown> {
 
   void _navigateToActionUrl(String actionUrl) {
     debugPrint('Navigate to: $actionUrl');
-    // 실제 라우팅 로직 구현
   }
 
   String _getTypeIcon(String type) {
     switch (type) {
-      case 'JOB_APPLICATION':
-        return '📝';
-      case 'JOB_STATUS_UPDATE':
-        return '📊';
-      case 'NEW_JOB_POSTING':
-        return '💼';
-      case 'RESUME_VIEW':
-        return '👀';
-      case 'MESSAGE':
-        return '💬';
-      case 'SYSTEM':
-        return '⚙️';
-      default:
-        return '🔔';
+      case 'JOB_APPLICATION': return '📝';
+      case 'JOB_STATUS_UPDATE': return '📊';
+      case 'NEW_JOB_POSTING': return '💼';
+      case 'RESUME_VIEW': return '👀';
+      case 'MESSAGE': return '💬';
+      case 'SYSTEM': return '⚙️';
+      default: return '🔔';
     }
   }
 
   Color _getTypeColor(String type) {
     switch (type) {
-      case 'JOB_APPLICATION':
-        return Colors.green;
-      case 'JOB_STATUS_UPDATE':
-        return Colors.blue;
-      case 'NEW_JOB_POSTING':
-        return Colors.orange;
-      case 'RESUME_VIEW':
-        return Colors.purple;
-      case 'MESSAGE':
-        return Colors.blueGrey;
-      case 'SYSTEM':
-        return Colors.brown;
-      default:
-        return Colors.grey;
+      case 'JOB_APPLICATION': return Colors.green;
+      case 'JOB_STATUS_UPDATE': return Colors.blue;
+      case 'NEW_JOB_POSTING': return Colors.orange;
+      case 'RESUME_VIEW': return Colors.purple;
+      case 'MESSAGE': return Colors.blueGrey;
+      case 'SYSTEM': return Colors.brown;
+      default: return Colors.grey;
     }
   }
 }
@@ -342,54 +292,38 @@ class NotificationToast {
     late OverlayEntry overlayEntry;
 
     overlayEntry = OverlayEntry(
-      builder:
-          (context) => Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 20,
-            right: 20,
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                decoration: BoxDecoration(
-                  color: backgroundColor,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.notifications,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        message,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.notifications, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+              ],
             ),
           ),
+        ),
+      ),
     );
 
     overlay.insert(overlayEntry);
-
-    Future.delayed(duration, () {
-      overlayEntry.remove();
-    });
+    Future.delayed(duration, () { overlayEntry.remove(); });
   }
 }

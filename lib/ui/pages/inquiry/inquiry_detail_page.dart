@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/provider/inquiry_provider.dart';
 import '../../../data/model/inquiry.dart';
 import 'inquiry_form_page.dart';
+import '../../widgets/app_bar.dart';
 
 class InquiryDetailPage extends ConsumerStatefulWidget {
   final int inquiryNo;
-
   const InquiryDetailPage({super.key, required this.inquiryNo});
 
   @override
@@ -14,309 +14,246 @@ class InquiryDetailPage extends ConsumerStatefulWidget {
 }
 
 class _InquiryDetailPageState extends ConsumerState<InquiryDetailPage> {
+  static const Color _blue = Color(0xFF0B5FFF);
+  static const Color _label = Color(0xFF0B1220);
+  static const Color _secondary = Color(0xFF8E8E93);
+  static const Color _bg = Color(0xFFF2F2F7);
+  static const Color _red = Color(0xFFE5342F);
+  static const Color _green = Color(0xFF0FA958);
+  static const Color _orange = Color(0xFFFF9500);
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadInquiryDetail();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDetail());
   }
 
-  Future<void> _loadInquiryDetail() async {
-    await ref
-        .read(inquiryProvider.notifier)
-        .loadInquiryDetail(widget.inquiryNo);
+  Future<void> _loadDetail() async {
+    await ref.read(inquiryProvider.notifier).loadInquiryDetail(widget.inquiryNo);
   }
 
   Future<void> _navigateToEdit(Inquiry inquiry) async {
     final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (context) => InquiryFormPage(inquiry: inquiry),
-      ),
+      MaterialPageRoute(builder: (context) => InquiryFormPage(inquiry: inquiry)),
     );
-
-    if (result == true) {
-      if (mounted) {
-        Navigator.pop(context, true); // 수정 완료시 이전 화면으로
-      }
-    }
+    if (result == true && mounted) Navigator.pop(context, true);
   }
 
   Future<void> _showDeleteDialog(Inquiry inquiry) async {
-    final result = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('문의 삭제'),
-            content: const Text('정말로 이 문의를 삭제하시겠습니까?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('삭제'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('문의 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text('정말로 이 문의를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소', style: TextStyle(color: _secondary)),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제', style: TextStyle(color: _red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
-
-    if (result == true) {
-      await _deleteInquiry(inquiry);
-    }
+    if (confirmed == true) await _deleteInquiry(inquiry);
   }
 
   Future<void> _deleteInquiry(Inquiry inquiry) async {
-    final success = await ref
-        .read(inquiryProvider.notifier)
-        .deleteInquiry(inquiry.inquiryNo!);
-
+    final success = await ref.read(inquiryProvider.notifier).deleteInquiry(inquiry.inquiryNo!);
+    if (!mounted) return;
     if (success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('문의가 삭제되었습니다.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true);
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('문의가 삭제되었습니다.'),
+          backgroundColor: _green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      Navigator.pop(context, true);
     } else {
-      if (mounted) {
-        final errorMessage =
-            ref.read(inquiryProvider).errorMessage ?? '문의 삭제에 실패했습니다.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-        );
-      }
+      final msg = ref.read(inquiryProvider).errorMessage ?? '문의 삭제에 실패했습니다.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: _red,
+            behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final inquiryState = ref.watch(inquiryProvider);
+    final state = ref.watch(inquiryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('문의 상세')),
-      body: Builder(
-        builder: (context) {
-          if (inquiryState.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      backgroundColor: _bg,
+      appBar: buildCommonAppBar(title: '문의 상세'),
+      body: Column(
+        children: [
+            Expanded(
+              child: Builder(builder: (context) {
+                if (state.isLoading) {
+                  return const Center(child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5));
+                }
 
-          if (inquiryState.errorMessage != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    inquiryState.errorMessage!,
-                    style: const TextStyle(fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      ref.read(inquiryProvider.notifier).clearError();
-                      _loadInquiryDetail();
-                    },
-                    child: const Text('다시 시도'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final inquiry = inquiryState.selectedInquiry;
-          if (inquiry == null) {
-            return const Center(child: Text('문의를 찾을 수 없습니다.'));
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 상태 및 날짜 정보
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color:
-                        inquiry.isAnswered
-                            ? Colors.green.shade50
-                            : Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color:
-                          inquiry.isAnswered
-                              ? Colors.green.shade200
-                              : Colors.orange.shade200,
+                if (state.errorMessage != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, size: 48, color: _red),
+                        const SizedBox(height: 12),
+                        Text(state.errorMessage!, style: const TextStyle(color: _secondary), textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        OutlinedButton(
+                          onPressed: () {
+                            ref.read(inquiryProvider.notifier).clearError();
+                            _loadDetail();
+                          },
+                          style: OutlinedButton.styleFrom(foregroundColor: _blue, side: const BorderSide(color: _blue, width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          child: const Text('다시 시도'),
+                        ),
+                      ],
                     ),
-                  ),
+                  );
+                }
+
+                final inquiry = state.selectedInquiry;
+                if (inquiry == null) {
+                  return const Center(child: Text('문의를 찾을 수 없습니다.', style: TextStyle(color: _secondary)));
+                }
+
+                final answered = inquiry.isAnswered;
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            inquiry.isAnswered
-                                ? Icons.check_circle
-                                : Icons.schedule,
-                            color:
-                                inquiry.isAnswered
-                                    ? Colors.green
-                                    : Colors.orange,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            inquiry.statusText,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color:
-                                  inquiry.isAnswered
-                                      ? Colors.green
-                                      : Colors.orange,
+                      // 상태 배지
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: (answered ? _green : _orange).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(answered ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                                color: answered ? _green : _orange, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(inquiry.statusText,
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
+                                          color: answered ? _green : _orange)),
+                                  if (inquiry.regdate != null)
+                                    Text('작성일: ${inquiry.regdate}',
+                                        style: const TextStyle(fontSize: 12, color: _secondary)),
+                                  if (inquiry.answerDate != null)
+                                    Text('답변일: ${inquiry.answerDate}',
+                                        style: const TextStyle(fontSize: 12, color: _secondary)),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 16),
+
+                      // 제목
+                      _section('제목'),
                       const SizedBox(height: 8),
-                      Text(
-                        '작성일: ${inquiry.regdate ?? '알 수 없음'}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      if (inquiry.answerDate != null)
-                        Text(
-                          '답변일: ${inquiry.answerDate}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
+                      _contentBox(inquiry.title, fontSize: 16, fontWeight: FontWeight.w600),
+                      const SizedBox(height: 16),
+
+                      // 내용
+                      _section('문의 내용'),
+                      const SizedBox(height: 8),
+                      _contentBox(inquiry.content),
+                      const SizedBox(height: 16),
+
+                      // 답변
+                      if (inquiry.answer != null && inquiry.answer!.isNotEmpty) ...[
+                        _section('답변', color: _green),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _green.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
                           ),
+                          child: Text(inquiry.answer!,
+                              style: const TextStyle(fontSize: 15, height: 1.6, color: _label, letterSpacing: -0.2)),
                         ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 액션 버튼 (대기 중만)
+                      if (!inquiry.isAnswered) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _navigateToEdit(inquiry),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _blue,
+                                  side: const BorderSide(color: Color(0xFFE5E5EA)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: const Text('수정', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _showDeleteDialog(inquiry),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _red,
+                                  side: BorderSide(color: _red.withValues(alpha: 0.4)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: const Text('삭제', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 제목
-                const Text(
-                  '제목',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    inquiry.title,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 내용
-                const Text(
-                  '문의 내용',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    inquiry.content,
-                    style: const TextStyle(fontSize: 14, height: 1.5),
-                  ),
-                ),
-
-                // 답변 (있는 경우)
-                if (inquiry.answer != null && inquiry.answer!.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  const Text(
-                    '답변',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      border: Border.all(color: Colors.green.shade200),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      inquiry.answer!,
-                      style: const TextStyle(fontSize: 14, height: 1.5),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 32),
-
-                // 액션 버튼들 (답변 전 문의만)
-                if (inquiry.status == 'WAIT') ...[
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _navigateToEdit(inquiry),
-                          icon: const Icon(Icons.edit),
-                          label: const Text('수정'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showDeleteDialog(inquiry),
-                          icon: const Icon(Icons.delete),
-                          label: const Text('삭제'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+                );
+              }),
             ),
-          );
-        },
+          ],
+        ),
+    );
+  }
+
+  Widget _section(String text, {Color? color}) {
+    return Text(text,
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+            color: color ?? _secondary, letterSpacing: -0.2));
+  }
+
+  Widget _contentBox(String text, {double fontSize = 15, FontWeight fontWeight = FontWeight.w400}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
       ),
+      child: Text(text,
+          style: TextStyle(fontSize: fontSize, fontWeight: fontWeight, height: 1.6, color: _label, letterSpacing: -0.2)),
     );
   }
 }

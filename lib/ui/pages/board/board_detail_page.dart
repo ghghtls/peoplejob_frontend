@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../services/board_service.dart';
 import '../../../services/auth_service.dart';
+import '../../widgets/app_bar.dart';
 
 class BoardDetailPage extends StatefulWidget {
   final int boardNo;
-
   const BoardDetailPage({super.key, required this.boardNo});
 
   @override
@@ -13,9 +14,15 @@ class BoardDetailPage extends StatefulWidget {
 }
 
 class _BoardDetailPageState extends State<BoardDetailPage> {
+  static const Color _blue = Color(0xFF0B5FFF);
+  static const Color _label = Color(0xFF0B1220);
+  static const Color _secondary = Color(0xFF8E8E93);
+  static const Color _bg = Color(0xFFF2F2F7);
+  static const Color _red = Color(0xFFE5342F);
+
   final BoardService _boardService = BoardService();
   final AuthService _authService = AuthService();
-  Map<String, dynamic>? _boardDetail;
+  Map<String, dynamic>? _board;
   bool _isLoading = true;
   String? _currentUser;
   bool _isMyBoard = false;
@@ -24,151 +31,84 @@ class _BoardDetailPageState extends State<BoardDetailPage> {
   void initState() {
     super.initState();
     _loadCurrentUser();
-    _loadBoardDetail();
+    _loadBoard();
   }
 
   Future<void> _loadCurrentUser() async {
-    final userInfo = await _authService.getUserInfo();
-    setState(() {
-      _currentUser = userInfo['name'] ?? userInfo['userid'];
-    });
+    final info = await _authService.getUserInfo();
+    setState(() => _currentUser = info['name'] ?? info['userid']);
   }
 
-  Future<void> _loadBoardDetail() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+  Future<void> _loadBoard() async {
+    setState(() => _isLoading = true);
     try {
-      final boardDetail = await _boardService.getBoardDetail(widget.boardNo);
+      final board = await _boardService.getBoardDetail(widget.boardNo);
       setState(() {
-        _boardDetail = boardDetail;
-        _isMyBoard =
-            _currentUser != null && boardDetail['writer'] == _currentUser;
+        _board = board;
+        _isMyBoard = _currentUser != null && board['writer'] == _currentUser;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      setState(() => _isLoading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
-  String _formatDate(String? dateStr) {
-    if (dateStr == null) return '';
+  String _formatDate(String? d) {
+    if (d == null) return '';
     try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('yyyy년 MM월 dd일 HH:mm').format(date);
-    } catch (e) {
-      return dateStr;
+      return DateFormat('yyyy년 MM월 dd일 HH:mm').format(DateTime.parse(d));
+    } catch (_) {
+      return d;
     }
   }
 
-  Color _getCategoryColor(String? category) {
-    switch (category) {
-      case '공지사항':
-        return Colors.red;
-      case '자유게시판':
-        return Colors.blue;
-      case '질문게시판':
-        return Colors.orange;
-      case '취업정보':
-        return Colors.green;
-      case '후기':
-        return Colors.purple;
-      default:
-        return Colors.grey;
+  Color _categoryColor(String? cat) {
+    switch (cat) {
+      case '공지사항': return _red;
+      case '자유게시판': return _blue;
+      case '질문게시판': return const Color(0xFFFF9500);
+      case '취업정보': return const Color(0xFF34C759);
+      case '후기': return const Color(0xFF5856D6);
+      default: return _secondary;
     }
-  }
-
-  void _editBoard() {
-    Navigator.pushNamed(context, '/board-edit', arguments: widget.boardNo);
   }
 
   void _deleteBoard() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('게시글 삭제'),
-          content: const Text('정말로 이 게시글을 삭제하시겠습니까?\n삭제된 게시글은 복구할 수 없습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                try {
-                  await _boardService.deleteBoard(widget.boardNo);
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('게시글 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text('이 게시글을 삭제하시겠습니까?\n삭제된 게시글은 복구할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('취소', style: TextStyle(color: _secondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                await _boardService.deleteBoard(widget.boardNo);
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('게시글이 삭제되었습니다'),
-                      backgroundColor: Colors.green,
+                    SnackBar(
+                      content: const Text('게시글이 삭제되었습니다'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   );
                   Navigator.of(context).pop();
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('삭제'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _shareBoard() {
-    // TODO: 공유 기능 구현
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('공유 기능은 준비 중입니다')));
-  }
-
-  void _reportBoard() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('게시글 신고'),
-          content: const Text('이 게시글을 신고하시겠습니까?\n신고 사유를 확인 후 조치하겠습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // TODO: 신고 기능 구현
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('신고가 접수되었습니다'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('신고'),
-            ),
-          ],
-        );
-      },
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+              }
+            },
+            child: const Text('삭제', style: TextStyle(color: _red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -176,408 +116,243 @@ class _BoardDetailPageState extends State<BoardDetailPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('게시글'),
-          backgroundColor: Colors.indigo[600],
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
+        backgroundColor: _bg,
+        appBar: buildCommonAppBar(title: '게시글'),
+        body: const Center(child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5)),
       );
     }
 
-    if (_boardDetail == null) {
+    if (_board == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('게시글'),
-          backgroundColor: Colors.indigo[600],
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(child: Text('게시글을 찾을 수 없습니다')),
+        backgroundColor: _bg,
+        appBar: buildCommonAppBar(title: '게시글'),
+        body: const Center(child: Text('게시글을 찾을 수 없습니다', style: TextStyle(color: _secondary))),
       );
     }
 
-    final isNotice = _boardDetail!['category'] == '공지사항';
+    final isNotice = _board!['category'] == '공지사항';
+    final catColor = _categoryColor(_board!['category']);
+    final writerInitial = (_board!['writer'] ?? 'U').substring(0, 1).toUpperCase();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('게시글'),
-        backgroundColor: Colors.indigo[600],
-        foregroundColor: Colors.white,
+      backgroundColor: _bg,
+      appBar: buildCommonAppBar(
+        title: '게시글',
         actions: [
           if (_isMyBoard) ...[
             IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: _editBoard,
-              tooltip: '수정',
+              onPressed: () => Navigator.pushNamed(context, '/board-edit', arguments: widget.boardNo),
+              icon: const Icon(Icons.edit_outlined, color: _blue, size: 20),
             ),
             IconButton(
-              icon: const Icon(Icons.delete),
               onPressed: _deleteBoard,
-              tooltip: '삭제',
+              icon: const Icon(Icons.delete_outline_rounded, color: _red, size: 20),
             ),
           ] else ...[
             PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'share':
-                    _shareBoard();
-                    break;
-                  case 'report':
-                    _reportBoard();
-                    break;
+              icon: const Icon(Icons.more_horiz_rounded, color: _secondary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (v) {
+                if (v == 'report') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('신고가 접수되었습니다'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
                 }
               },
-              itemBuilder:
-                  (BuildContext context) => [
-                    const PopupMenuItem<String>(
-                      value: 'share',
-                      child: Row(
-                        children: [
-                          Icon(Icons.share),
-                          SizedBox(width: 8),
-                          Text('공유하기'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'report',
-                      child: Row(
-                        children: [
-                          Icon(Icons.report, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('신고하기'),
-                        ],
-                      ),
-                    ),
-                  ],
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'report',
+                  child: Row(children: [
+                    Icon(Icons.report_outlined, color: _red, size: 18),
+                    SizedBox(width: 8),
+                    Text('신고하기'),
+                  ]),
+                ),
+              ],
             ),
           ],
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 헤더 영역
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isNotice ? Colors.red[50] : Colors.indigo[50],
-                border:
-                    isNotice
-                        ? Border(
-                          bottom: BorderSide(color: Colors.red[200]!, width: 2),
-                        )
-                        : Border(
-                          bottom: BorderSide(
-                            color: Colors.indigo[200]!,
-                            width: 1,
-                          ),
-                        ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 카테고리와 상태
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getCategoryColor(_boardDetail!['category']),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _boardDetail!['category'] ?? '일반',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      if (_isMyBoard)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '내가 쓴 글',
-                            style: TextStyle(
-                              color: Colors.orange[700],
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 제목
-                  Text(
-                    _boardDetail!['title'] ?? '',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: isNotice ? Colors.red[800] : Colors.black87,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 작성자 정보
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.indigo[100],
-                        child: Text(
-                          (_boardDetail!['writer'] ?? 'U')
-                              .substring(0, 1)
-                              .toUpperCase(),
-                          style: TextStyle(
-                            color: Colors.indigo[700],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _boardDetail!['writer'] ?? '익명',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              _formatDate(_boardDetail!['regdate']),
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // 조회수
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.visibility,
-                              size: 16,
-                              color: Colors.grey[600],
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${_boardDetail!['viewCount'] ?? 0}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // 본문 내용
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 첨부파일
-                  if (_boardDetail!['originalFilename'] != null) ...[
+      body: Column(
+        children: [
+          // 본문 스크롤
+          Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 카테고리 배지
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue[200]!),
+                        color: catColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(_board!['category'] ?? '일반',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: catColor)),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 제목
+                    Text(_board!['title'] ?? '',
+                        style: TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.w700,
+                          color: isNotice ? _red : _label,
+                          letterSpacing: -0.5, height: 1.3,
+                        )),
+                    const SizedBox(height: 16),
+
+                    // 작성자 정보
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.attach_file, color: Colors.blue[600]),
+                          Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              color: _blue.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(writerInitial,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _blue)),
+                            ),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  '첨부파일',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  _boardDetail!['originalFilename'],
-                                  style: TextStyle(
-                                    color: Colors.blue[800],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                                Text(_board!['writer'] ?? '익명',
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _label, letterSpacing: -0.3)),
+                                Text(_formatDate(_board!['regdate']),
+                                    style: const TextStyle(fontSize: 12, color: _secondary, letterSpacing: -0.2)),
                               ],
                             ),
                           ),
-                          TextButton.icon(
-                            onPressed: () {
-                              // TODO: 파일 다운로드 구현
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('파일 다운로드 기능은 준비 중입니다'),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.download, size: 16),
-                            label: const Text('다운로드'),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.visibility_outlined, size: 14, color: _secondary),
+                                const SizedBox(width: 4),
+                                Text('${_board!['viewCount'] ?? 0}',
+                                    style: const TextStyle(fontSize: 13, color: _secondary, fontWeight: FontWeight.w500)),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
+                    const SizedBox(height: 16),
 
-                  // 본문 내용
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Text(
-                      _boardDetail!['content'] ?? '내용이 없습니다.',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        height: 1.6,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // 댓글 섹션 (향후 구현)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.comment_outlined,
-                          size: 48,
-                          color: Colors.grey[400],
+                    // 첨부파일
+                    if (_board!['originalFilename'] != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: _blue.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '댓글 기능은 준비 중입니다',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 16,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.attach_file_rounded, color: _blue, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('첨부파일', style: TextStyle(fontSize: 11, color: _secondary, fontWeight: FontWeight.w500)),
+                                  Text(_board!['originalFilename'],
+                                      style: const TextStyle(fontSize: 14, color: _blue, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                final fileUrl = _board!['filename'] as String?;
+                                if (fileUrl == null) return;
+                                final uri = Uri.parse(fileUrl);
+                                final messenger = ScaffoldMessenger.of(context);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                } else {
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('파일을 열 수 없습니다')),
+                                  );
+                                }
+                              },
+                              child: const Text('다운로드', style: TextStyle(color: _blue, fontWeight: FontWeight.w600, fontSize: 13)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // 본문
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                      ),
+                      child: Text(_board!['content'] ?? '내용이 없습니다.',
+                          style: const TextStyle(fontSize: 16, height: 1.7, color: _label, letterSpacing: -0.2)),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 하단 버튼
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _secondary,
+                              side: const BorderSide(color: Color(0xFFE5E5EA)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text('목록으로', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pushNamed(context, '/board-write'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _blue,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text('글쓰기',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
         ),
-      ),
-
-      // 하단 버튼
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.3),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, -3),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              // 목록으로 버튼
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.list),
-                  label: const Text('목록으로'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.indigo[600],
-                    side: BorderSide(color: Colors.indigo[600]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    minimumSize: const Size(0, 50),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // 글쓰기 버튼
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/board-write');
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('글쓰기'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo[600],
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    minimumSize: const Size(0, 50),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
