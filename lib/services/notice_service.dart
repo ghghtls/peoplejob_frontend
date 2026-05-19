@@ -13,13 +13,19 @@ class NoticeService {
       : _dio = dio ??
             Dio(BaseOptions(
               baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 15),
             )) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _storage.read(key: 'jwt');
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          try {
+            final token = await _storage.read(key: 'jwt');
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          } catch (_) {
+            // storage unavailable — proceed without token
           }
           handler.next(options);
         },

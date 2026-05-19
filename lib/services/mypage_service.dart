@@ -18,16 +18,20 @@ class MypageService {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _storage.read(key: 'jwt');
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
+          try {
+            final token = await _storage.read(key: 'jwt');
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          } catch (_) {}
           handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
-            await _storage.delete(key: 'jwt');
-          }
+          try {
+            if (error.response?.statusCode == 401) {
+              await _storage.delete(key: 'jwt');
+            }
+          } catch (_) {}
           handler.next(error);
         },
       ),

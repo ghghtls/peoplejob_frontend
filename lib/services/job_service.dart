@@ -1,28 +1,40 @@
 // lib/services/job_service.dart
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/model/job.dart';
 import 'config/api_config.dart';
 
 class JobService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: ApiConfig.apiUrl));
+  late final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   JobService() {
+    _dio = Dio(BaseOptions(
+      baseUrl: dotenv.env['API_URL'] ?? ApiConfig.apiUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _storage.read(key: 'jwt');
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          try {
+            final token = await _storage.read(key: 'jwt');
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          } catch (_) {
+            // storage unavailable — proceed without token
           }
           handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
-            await _storage.delete(key: 'jwt');
-          }
+          try {
+            if (error.response?.statusCode == 401) {
+              await _storage.delete(key: 'jwt');
+            }
+          } catch (_) {}
           handler.next(error);
         },
       ),
@@ -367,6 +379,14 @@ class JobService {
     }
   }
 
+
+  Future<void> increaseViewCount(int jobId) async {
+    try {
+      await _dio.post('/api/jobs/$jobId/view');
+    } catch (e) {
+      debugPrint('조회수 증가 실패: $e');
+    }
+  }
 
   Future<Map<String, dynamic>> expireOverdueJobs() async {
     try {
