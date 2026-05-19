@@ -58,6 +58,12 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
 
   NotificationNotifier() : super(const NotificationState());
 
+  @override
+  void dispose() {
+    _service.stopPolling();
+    super.dispose();
+  }
+
   Future<void> loadNotifications({bool refresh = false, int pageSize = 20}) async {
     if (refresh) {
       state = state.copyWith(currentPage: 0, notifications: [], hasMore: true, clearError: true);

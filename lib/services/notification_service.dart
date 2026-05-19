@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -262,22 +264,39 @@ class NotificationService {
     }
   }
 
-  /// 실시간 알림 개수 폴링
-  Future<void> startPolling({
+  Timer? _pollingTimer;
+  int _failCount = 0;
+  static const int _maxFails = 3;
+
+  /// 알림 개수 폴링 시작
+  void startPolling({
     required Function(int) onUnreadCountChanged,
     Duration interval = const Duration(seconds: 30),
-  }) async {
-    while (true) {
+  }) {
+    stopPolling();
+    _failCount = 0;
+    _pollingTimer = Timer.periodic(interval, (_) async {
       try {
         final result = await getUnreadCount();
         if (result['success']) {
-          onUnreadCountChanged(result['count']);
+          _failCount = 0;
+          onUnreadCountChanged(result['count'] as int);
+        } else {
+          _failCount++;
+          if (_failCount >= _maxFails) stopPolling();
         }
-      } catch (e) {
-        // 폴링 오류는 무시
+      } catch (_) {
+        _failCount++;
+        if (_failCount >= _maxFails) stopPolling();
       }
-      await Future.delayed(interval);
-    }
+    });
+  }
+
+  /// 알림 개수 폴링 중지
+  void stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _failCount = 0;
   }
 
   /// 알림 타입 검증

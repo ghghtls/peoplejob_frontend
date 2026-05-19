@@ -71,7 +71,7 @@ class ApplyService {
   Future<List<dynamic>> getApplicationsByResume(int resumeNo) async {
     try {
       final res = await _dio.get('/api/apply/resume/$resumeNo');
-      return res.data is List ? res.data : [];
+      return _extractList(res.data);
     } catch (e) {
       throw Exception('지원 내역을 불러오는데 실패했습니다: $e');
     }
@@ -82,7 +82,7 @@ class ApplyService {
   Future<List<dynamic>> getApplicationsByJob(int jobopeningNo) async {
     try {
       final res = await _dio.get('/api/apply/job/$jobopeningNo');
-      return res.data is List ? res.data : [];
+      return _extractList(res.data);
     } catch (e) {
       throw Exception('지원자 목록을 불러오는데 실패했습니다: $e');
     }
@@ -108,7 +108,7 @@ class ApplyService {
         throw Exception('로그인이 필요합니다.');
       }
       final res = await _dio.get('/api/mypage/applies/$userNo');
-      return res.data is List ? res.data : [];
+      return _extractList(res.data);
     } catch (e) {
       throw Exception('내 지원 내역을 불러오는데 실패했습니다: $e');
     }
@@ -123,7 +123,7 @@ class ApplyService {
   Future<List<dynamic>> getAllApplications() async {
     try {
       final res = await _dio.get('/api/apply');
-      return res.data is List ? res.data : [];
+      return _extractList(res.data);
     } catch (e) {
       throw Exception('지원 내역을 불러오는데 실패했습니다: $e');
     }
@@ -180,6 +180,16 @@ class ApplyService {
     } catch (e) {
       return false;
     }
+  }
+
+  /// 내부 헬퍼: ApiResponse 래퍼에서 List 추출
+  List<dynamic> _extractList(dynamic body) {
+    if (body is List) return body;
+    if (body is Map) {
+      final inner = body['data'];
+      if (inner is List) return inner;
+    }
+    return [];
   }
 
   /// 내부 헬퍼: userNo 가져오기

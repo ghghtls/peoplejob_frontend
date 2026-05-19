@@ -69,6 +69,7 @@ import 'package:peoplejob_frontend/ui/pages/admin/popup/popup_register_page.dart
 import 'package:peoplejob_frontend/data/model/job.dart';
 
 import 'package:peoplejob_frontend/ui/pages/error/unauthorized_page.dart';
+import 'package:peoplejob_frontend/ui/pages/notification/notification_settings_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -190,6 +191,9 @@ class MyApp extends fr.ConsumerWidget {
 
         // 스크랩
         '/scrap': (context) => const ScrapListPage(),
+
+        // 알림 설정
+        '/settings/notifications': (context) => const NotificationSettingsPage(),
 
         // 취업뉴스
         '/resources/news': (context) => const JobNewsPage(),

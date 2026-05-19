@@ -67,11 +67,9 @@ class _ScrapListPageState extends State<ScrapListPage> {
   void _filterScraps() {
     setState(() {
       _filteredScraps = _scraps.where((scrap) {
-        final job = scrap['jobopening'];
-        if (job == null) return false;
         final matchesKeyword = _searchKeyword.isEmpty ||
-            (job['title'] ?? '').toString().toLowerCase().contains(_searchKeyword.toLowerCase());
-        final matchesType = _selectedJobType == '전체' || job['jobType'] == _selectedJobType;
+            (scrap['jobTitle'] ?? '').toString().toLowerCase().contains(_searchKeyword.toLowerCase());
+        final matchesType = _selectedJobType == '전체' || scrap['jobType'] == _selectedJobType;
         return matchesKeyword && matchesType;
       }).toList();
     });
@@ -353,10 +351,9 @@ class _ScrapListPageState extends State<ScrapListPage> {
   }
 
   Widget _buildCard(dynamic scrap) {
-    final job = scrap['jobopening'] as Map?;
-    if (job == null) return const SizedBox.shrink();
-    final expired = _isExpired(job['deadline'] as String?);
-    final days = _daysLeft(job['deadline'] as String?);
+    final deadlineStr = scrap['deadline']?.toString();
+    final expired = _isExpired(deadlineStr);
+    final days = _daysLeft(deadlineStr);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -370,7 +367,7 @@ class _ScrapListPageState extends State<ScrapListPage> {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.pushNamed(context, '/job-detail', arguments: job['jobopeningNo']),
+          onTap: () => Navigator.pushNamed(context, '/job-detail', arguments: scrap['jobNo']),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -380,7 +377,7 @@ class _ScrapListPageState extends State<ScrapListPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(job['title'] ?? '',
+                      child: Text(scrap['jobTitle'] ?? '',
                           style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w700,
                             color: expired ? _secondary : _label,
@@ -397,7 +394,7 @@ class _ScrapListPageState extends State<ScrapListPage> {
                           _badge('D-$days', _orange.withValues(alpha: 0.12), _orange),
                         const SizedBox(width: 6),
                         GestureDetector(
-                          onTap: () => _removeScrap(scrap['scrapNo'], job['title'] ?? '채용공고'),
+                          onTap: () => _removeScrap(scrap['scrapNo'], scrap['jobTitle'] ?? '채용공고'),
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
@@ -415,9 +412,9 @@ class _ScrapListPageState extends State<ScrapListPage> {
                 Wrap(
                   spacing: 6, runSpacing: 6,
                   children: [
-                    if ((job['jobType'] ?? '').toString().isNotEmpty) _tag(Icons.work_outline_rounded, job['jobType']),
-                    if ((job['location'] ?? '').toString().isNotEmpty) _tag(Icons.location_on_outlined, job['location']),
-                    if ((job['career'] ?? '').toString().isNotEmpty) _tag(Icons.timeline_rounded, job['career']),
+                    if ((scrap['jobType'] ?? '').toString().isNotEmpty) _tag(Icons.work_outline_rounded, scrap['jobType']),
+                    if ((scrap['location'] ?? '').toString().isNotEmpty) _tag(Icons.location_on_outlined, scrap['location']),
+                    if ((scrap['companyName'] ?? '').toString().isNotEmpty) _tag(Icons.business_rounded, scrap['companyName']),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -426,9 +423,9 @@ class _ScrapListPageState extends State<ScrapListPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('스크랩 ${_formatDate(scrap['regdate'])}',
+                    Text('스크랩 ${_formatDate(scrap['scrapDate']?.toString())}',
                         style: const TextStyle(fontSize: 12, color: _secondary, letterSpacing: -0.2)),
-                    Text('마감 ${_formatDate(job['deadline'])}',
+                    Text('마감 ${_formatDate(deadlineStr)}',
                         style: TextStyle(fontSize: 12, color: expired ? _red : _secondary,
                             fontWeight: expired ? FontWeight.w600 : FontWeight.w400)),
                   ],

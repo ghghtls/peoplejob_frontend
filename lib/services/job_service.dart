@@ -127,14 +127,13 @@ class JobService {
     }
   }
 
-  Future<Map<String, dynamic>> getUserDrafts(
-    int userNo, {
+  Future<Map<String, dynamic>> getUserDrafts({
     int page = 0,
     int size = 10,
   }) async {
     try {
       final response = await _dio.get(
-        '/api/jobs/user/$userNo/drafts',
+        '/api/jobs/user/my/drafts',
         queryParameters: {'page': page, 'size': size},
       );
       return {
@@ -152,10 +151,7 @@ class JobService {
 
   Future<Map<String, dynamic>> publishJob(int jobNo, int userNo) async {
     try {
-      final response = await _dio.post(
-        '/api/jobs/$jobNo/publish',
-        queryParameters: {'userNo': userNo},
-      );
+      final response = await _dio.post('/api/jobs/$jobNo/publish');
       return {
         'success': true,
         'job': response.data['job'],
@@ -224,16 +220,13 @@ class JobService {
   }) async {
     try {
       Map<String, dynamic> queryParams = {'page': page, 'size': size};
-
       if (status != null && status.isNotEmpty) {
         queryParams['status'] = status;
       }
-
       final response = await _dio.get(
-        '/api/jobs/user/$userNo',
+        '/api/jobs/user/my',
         queryParameters: queryParams,
       );
-
       return {
         'success': true,
         'jobs': response.data['content'],
@@ -249,7 +242,7 @@ class JobService {
 
   Future<Map<String, dynamic>> getUserJobStatusCounts(int userNo) async {
     try {
-      final response = await _dio.get('/api/jobs/user/$userNo/status-counts');
+      final response = await _dio.get('/api/jobs/user/my/status-counts');
       return {'success': true, 'counts': response.data};
     } catch (e) {
       throw Exception('상태별 개수 조회에 실패했습니다: $e');
@@ -264,7 +257,7 @@ class JobService {
     try {
       final response = await _dio.put(
         '/api/jobs/$jobNo/status',
-        queryParameters: {'status': status, 'userNo': userNo},
+        queryParameters: {'status': status},
       );
       return {
         'success': true,
