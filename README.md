@@ -125,6 +125,7 @@
 <table>
   <tr>
     <td align="center"><img src="assets/screenshots/mypage.png" width="220"/><br/><sub>개인 마이페이지 — 통계 · 메뉴 그룹</sub></td>
+    <td align="center"><img src="assets/screenshots/notification.png" width="220"/><br/><sub>알림 설정 — 유형별 개별 토글 · 전체 on/off</sub></td>
   </tr>
 </table>
 
@@ -248,9 +249,9 @@
 
 | 기능 | 설명 |
 |------|------|
-| 채용공고 관리 | 등록·수정·삭제, 임시저장, 게시 상태 관리 |
+| 채용공고 관리 | 등록·수정·삭제, 임시저장, 게시 상태 관리 — **본인 회사 공고만 조회·조작 가능** |
 | 공고 상태 제어 | DRAFT → PENDING → PUBLISHED → EXPIRED 흐름 |
-| 지원자 관리 | 공고별 지원자 목록, 이력서 열람, 이메일 연락 |
+| 지원자 관리 | 공고별 지원자 목록, 이력서 열람, 이메일 연락 — **본인 회사 공고 지원자만 열람·상태 변경 가능** |
 | 기업 마이페이지 | 기업 프로필 관리, 채용·서비스·계정 메뉴 통합 |
 | 인재 검색 | 지역·직무 필터로 구직자 이력서 검색, 제안하기 |
 | 광고 결제 | Basic·Standard·Premium 상품, 7일·14일·30일 노출 기간 선택 |
@@ -1172,3 +1173,109 @@ flutter test --update-goldens
 ```
 
 `test/golden_files/` 디렉토리의 `.png` 파일이 갱신됩니다. 의도한 UI 변경이 맞는지 확인 후 커밋하세요.
+
+---
+
+### 기업 채용공고·지원자 관리 — 타사 데이터 접근 차단
+
+**증상:** 기업 마이페이지의 채용공고 관리·지원자 관리에서 본인 회사 데이터만 보여야 하는데, URL에 다른 `userNo`나 `jobNo`를 넣으면 타사 공고 목록 조회·수정·삭제 및 타사 지원자 목록 열람이 가능한 상태였음.
+
+**원인:** 백엔드가 클라이언트가 전달한 `userNo`를 그대로 신뢰하고, `update` / `delete` / `getByJob` / `updateStatus` 엔드포인트에 소유권 검증 로직이 없었음.
+
+**해결:**
+
+1. **채용공고 조회** — `GET /api/jobs/user/{userNo}` (URL 파라미터 신뢰) → `GET /api/jobs/user/my` 로 변경. 컨트롤러에서 `Authorization` 헤더의 JWT를 직접 파싱해 `userNo`를 추출하므로 클라이언트 조작 불가.
+
+2. **채용공고 수정·삭제·게시·상태변경** — 서비스 레이어에 소유권 검증 추가. `entity.getUserNo().equals(userNo)` 불일치 시 `RuntimeException("권한이 없습니다.")` 발생.
+
+3. **지원자 목록 조회** (`GET /api/apply/job/{jobopeningNo}`) — JWT로 추출한 `userNo`가 해당 공고의 `userNo`와 일치해야만 반환. 불일치 시 403.
+
+4. **지원자 상태 변경** (`PUT /api/apply/{applyNo}/status`) — 지원 건의 `jobNo`로 공고를 조회한 뒤, 공고 owner와 JWT `userNo`를 비교해 권한 검증.
+
+```java
+// JobopeningController — JWT에서 userNo 추출
+private Long extractUserNo(HttpServletRequest request) {
+    String auth = request.getHeader("Authorization");
+    String userid = jwtTokenProvider.getUserid(auth.substring(7));
+    return userRepository.findByUserid(userid)
+            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."))
+            .getUserNo();
+}
+
+// JobopeningServiceImpl — 수정/삭제 소유권 검증
+if (!entity.getUserNo().equals(userNo)) {
+    throw new RuntimeException("권한이 없습니다.");
+}
+
+// ApplyController — 지원자 조회 소유권 검증
+Long jobOwner = jobopeningRepository.findById(jobopeningNo).getUserNo();
+if (!jobOwner.equals(userNo)) {
+    return ResponseEntity.status(403).body(ApiResponse.error("권한이 없습니다."));
+}
+```
+
+---
+
+### 알림 폴링 — `while(true)` 무한루프로 인한 메모리 누수
+
+**증상:** 로그아웃 후에도 알림 폴링이 계속 동작하며 30초마다 API 요청이 발생. 백엔드가 꺼진 상태에서도 루프가 종료되지 않음.
+
+**원인:** `NotificationService.startPolling()`이 `while(true)` + `Future.delayed` 조합으로 구현되어 있었음. `await Future.delayed` 중에는 루프를 외부에서 중단할 수 없어 앱 생명주기와 무관하게 계속 실행됨.
+
+```dart
+// 수정 전 — 취소 불가능한 무한루프
+Future<void> startPolling(...) async {
+  while (true) {
+    await getUnreadCount();
+    await Future.delayed(interval); // 이 지점에서 취소 방법 없음
+  }
+}
+```
+
+**해결:** `Timer.periodic`으로 교체하고 `stopPolling()`으로 명시적 취소 지원. `NotificationNotifier.dispose()`에서 `stopPolling()`을 호출해 Provider 해제 시 타이머가 자동 종료되도록 처리.
+
+```dart
+// 수정 후 — Timer 기반, dispose()에서 정리
+Timer? _pollingTimer;
+
+void startPolling({required Function(int) onUnreadCountChanged, ...}) {
+  stopPolling(); // 중복 타이머 방지
+  _pollingTimer = Timer.periodic(interval, (_) async { ... });
+}
+
+void stopPolling() {
+  _pollingTimer?.cancel();
+  _pollingTimer = null;
+}
+```
+
+---
+
+### 알림 폴링 — 백엔드 중단 시 불필요한 반복 요청
+
+**증상:** 백엔드 서버가 꺼진 상태에서도 30초마다 `/api/notifications/unread-count` 요청이 계속 발생. 전부 실패하지만 타이머가 멈추지 않아 불필요한 네트워크 요청과 배터리 소모가 지속됨.
+
+**원인:** `Timer.periodic`으로 전환 후에도 실패 시 타이머를 중단하는 로직이 없어 오류를 `catch`로 무시하고 계속 폴링.
+
+**해결:** 연속 실패 횟수를 카운트해 3회 이상이면 `stopPolling()`을 호출하여 자동 중단. 성공 시 카운터를 초기화해 일시적 네트워크 오류와 서버 다운을 구분.
+
+```dart
+int _failCount = 0;
+static const int _maxFails = 3;
+
+_pollingTimer = Timer.periodic(interval, (_) async {
+  try {
+    final result = await getUnreadCount();
+    if (result['success']) {
+      _failCount = 0;           // 성공 시 카운터 초기화
+      onUnreadCountChanged(result['count'] as int);
+    } else {
+      _failCount++;
+      if (_failCount >= _maxFails) stopPolling(); // 3회 연속 실패 시 중단
+    }
+  } catch (_) {
+    _failCount++;
+    if (_failCount >= _maxFails) stopPolling();
+  }
+});
+```
