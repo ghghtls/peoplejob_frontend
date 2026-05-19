@@ -29,6 +29,7 @@
 10. [API 연동](#api-연동)
 11. [테스트](#테스트)
 12. [빌드 및 배포](#빌드-및-배포)
+13. [트러블슈팅](#트러블슈팅)
 
 <br>
 
@@ -229,11 +230,11 @@
 
 ## 주요 기능
 
-### 👤 구직자 (User)
+### 구직자 (User)
 
 | 기능 | 설명 |
 |------|------|
-| 회원가입 / 로그인 | 아이디·비밀번호 기반 인증, 이메일 인증 |
+| 회원가입 / 로그인 | 아이디·비밀번호 기반 인증, 이메일 인증 코드 확인 |
 | 채용공고 탐색 | 전체 목록, 고용형태·지역 필터 칩, 키워드 검색, AD 배지 |
 | 채용공고 지원 | 이력서 선택 후 원클릭 지원, 중복 지원 방지 |
 | 이력서 관리 | 이력서 CRUD, 희망직종·지역·근무형태 선택, 프로필 사진 업로드 |
@@ -243,7 +244,7 @@
 | 도구 | 글자 수 세기(공백 포함/제외), 취업 뉴스, 워크넷 바로가기 |
 | 알림 | 실시간 알림 수신, 읽음 처리 |
 
-### 🏢 기업 (Company)
+### 기업 (Company)
 
 | 기능 | 설명 |
 |------|------|
@@ -255,7 +256,7 @@
 | 광고 결제 | Basic·Standard·Premium 상품, 7일·14일·30일 노출 기간 선택 |
 | 결제 내역 | 광고별 결제 금액·기간 이력, 총 결제 금액 요약 |
 
-### 🔧 관리자 (Admin)
+### 관리자 (Admin)
 
 | 기능 | 설명 |
 |------|------|
@@ -284,9 +285,12 @@
 | 상태 관리 | flutter_riverpod | 2.6.1 |
 | HTTP 클라이언트 | Dio | 5.8.0+1 |
 | HTTP 클라이언트 (보조) | http | 0.13.6 |
+| 라우팅 (보조) | go_router | 15.1.0 |
 | 로컬 보안 저장소 | flutter_secure_storage | 9.0.0 |
 | 로컬 설정 저장소 | shared_preferences | 2.2.2 |
 | 로컬 DB | Hive + hive_flutter | 2.2.3 / 1.1.0 |
+| 네트워크 상태 감지 | connectivity_plus | 5.0.1 |
+| 로깅 | logger | 2.0.2 |
 
 ### UI / UX
 
@@ -294,6 +298,7 @@
 |------|------|------|
 | 디자인 시스템 | Material Design 3 | — |
 | 커스텀 폰트 | Pretendard | 400/500/600/700 |
+| 커스텀 폰트 | Ownglyph-GeungJeong | — |
 | 리치 텍스트 에디터 | flutter_quill + extensions | 11.4.0 / 11.0.0 |
 | 이미지 캐싱 | cached_network_image | 3.3.0 |
 | 아이콘 | cupertino_icons | 1.0.8 |
@@ -307,9 +312,11 @@
 | 파일 선택 | file_picker | 10.2.0 |
 | 이미지 선택 | image_picker | 1.1.2 |
 | 파일 경로 | path_provider | 2.1.1 |
+| 권한 요청 | permission_handler | 11.1.0 |
 | 암호화 | crypto + encrypt | 3.0.3 / 5.0.1 |
+| URL 실행 | url_launcher | 6.3.1 |
 
-### Firebase (설정 완료, 선택적 사용)
+### Firebase
 
 | 서비스 | 패키지 | 버전 |
 |--------|--------|------|
@@ -352,55 +359,66 @@
 │                 Service Layer                       │
 │  AuthService · JobService · ResumeService           │
 │  ApplyService · BoardService · InquiryService       │
-│  ScrapService · PaymentService · AdminService · …   │
+│  ScrapService · PaymentService · AdminService       │
+│  MypageService · CacheService · …                   │
 │  (JWT 인터셉터, 에러 처리, 페이지네이션 내장)         │
 └──────────────┬─────────────────┬───────────────────┘
                │                 │
 ┌──────────────▼──────┐  ┌───────▼───────────────────┐
 │   Remote API        │  │  Local Storage             │
-│  REST (Dio/http)    │  │  SecureStorage             │
+│  REST (Dio/http)    │  │  SecureStorage (JWT)       │
 │  JWT 인증           │  │  SharedPreferences         │
-│  멀티파트 업로드     │  │  Hive                      │
+│  멀티파트 업로드     │  │  Hive (오프라인 캐시)       │
 └─────────────────────┘  └───────────────────────────┘
 ```
 
 ### 라우팅
 
-`MaterialApp.routes` + `onGenerateRoute`를 사용한 55+ 정적 라우트와 동적 라우트 혼합 방식입니다.
+`MaterialApp.routes` + `onGenerateRoute`를 사용한 60+ 정적 라우트와 동적 라우트 혼합 방식입니다.
 
 ```
-/                       → 홈
-├─ /login               → 로그인
-├─ /register            → 회원가입
-├─ /find-id             → 아이디 찾기
-├─ /find-password       → 비밀번호 찾기
-├─ /job-list            → 채용공고 목록
-├─ /job-detail          → 채용공고 상세 (동적: jobId)
-├─ /job-register        → 채용공고 등록
-├─ /resume              → 내 이력서 목록
-├─ /resume-register     → 이력서 등록
-├─ /profile-edit        → 내정보 수정
-├─ /board               → 게시판
-├─ /notice              → 공지사항
-├─ /inquiry/*           → 1:1 문의
-├─ /search              → 통합 검색
-├─ /talent-search       → 인재정보 검색
-├─ /payment/*           → 광고 결제 (공고 선택→상품 선택→일정→결제→완료)
-├─ /mypage              → 개인 마이페이지
-├─ /companymypage       → 기업 마이페이지
-├─ /resources/list      → 자료실
-├─ /tools/wordcount     → 글자 수 세기
-└─ /admin/*             → 관리자 패널 (권한 체크)
-    ├─ /admin/dashboard     → 대시보드
-    ├─ /admin/user          → 회원 관리
-    ├─ /admin/jobs          → 채용공고 관리
-    ├─ /admin/applicants    → 지원자 관리
-    ├─ /admin/inquiry       → 문의사항 관리
-    ├─ /admin/notice        → 공지사항 관리
-    ├─ /admin/faq           → FAQ 관리
-    ├─ /admin/popup         → 팝업 관리
-    ├─ /admin/files         → 파일 관리
-    └─ /admin/products      → 서비스 상품 관리
+/                          → 홈
+├─ /login                  → 로그인
+├─ /register               → 회원가입
+├─ /email-verification     → 이메일 인증
+├─ /find-id                → 아이디 찾기
+├─ /find-password          → 비밀번호 찾기
+├─ /job-list               → 채용공고 목록
+├─ /job-detail             → 채용공고 상세 (동적: jobId)
+├─ /job-register           → 채용공고 등록
+├─ /resume                 → 내 이력서 목록
+├─ /resume-register        → 이력서 등록
+├─ /profile-edit           → 내정보 수정
+├─ /board                  → 게시판
+├─ /notice                 → 공지사항
+├─ /inquiry/*              → 1:1 문의
+├─ /search                 → 통합 검색
+├─ /talent-search          → 인재정보 검색
+├─ /payment/*              → 광고 결제 (공고 선택→상품 선택→일정→결제→완료)
+├─ /mypage                 → 개인 마이페이지
+├─ /companymypage          → 기업 마이페이지
+├─ /resources/list         → 자료실
+├─ /resources/news         → 취업 뉴스
+├─ /tools/wordcount        → 글자 수 세기
+├─ /scrap                  → 스크랩 목록
+├─ /apply-list             → 지원 내역
+└─ /admin/*                → 관리자 패널 (isAdminProvider 권한 체크)
+    ├─ /admin/dashboard    → 대시보드
+    ├─ /admin/user         → 회원 관리
+    ├─ /admin/jobs         → 채용공고 관리
+    ├─ /admin/applicants   → 지원자 관리
+    ├─ /admin/inquiry      → 문의사항 관리
+    ├─ /admin/notice       → 공지사항 관리
+    ├─ /admin/faq          → FAQ 관리
+    ├─ /admin/popup        → 팝업 관리
+    ├─ /admin/files        → 파일 관리
+    ├─ /admin/products     → 서비스 상품 관리
+    ├─ /admin/board/manage    → 게시판 관리
+    ├─ /admin/board/register  → 게시판 등록
+    ├─ /admin/board/edit/:id  → 게시판 수정 (동적)
+    ├─ /admin/popup/manage    → 팝업 목록
+    ├─ /admin/popup/register  → 팝업 등록
+    └─ /admin/popup/edit/:id  → 팝업 수정 (동적)
 ```
 
 관리자 라우트는 `isAdminProvider`로 접근 제어하며, 권한이 없으면 `UnauthorizedPage`로 리다이렉트합니다.
@@ -413,15 +431,15 @@
 
 ```
 lib/
-├── main.dart                   # 앱 진입점, 초기화, 라우팅 정의
-├── firebase_options.dart       # Firebase 설정
-├── api_service.dart            # 공통 API 서비스
+├── main.dart                        # 앱 진입점, 초기화, 라우팅 정의
+├── firebase_options.dart            # Firebase 설정
+├── api_service.dart                 # 공통 API 서비스
 │
 ├── config/
 │   └── theme/
-│       └── app_theme.dart      # 디자인 토큰, ThemeData
+│       └── app_theme.dart           # 디자인 토큰, ThemeData
 │
-├── services/                   # 비즈니스 로직 계층
+├── services/                        # 비즈니스 로직 계층
 │   ├── auth_service.dart
 │   ├── job_service.dart
 │   ├── resume_service.dart
@@ -434,49 +452,57 @@ lib/
 │   ├── payment_service.dart
 │   ├── file_upload_service.dart
 │   ├── admin_service.dart
+│   ├── mypage_service.dart          # 마이페이지 전용 API
+│   ├── cache_service.dart           # 메모리 캐시 (Redis 협력)
 │   ├── email_service.dart
+│   ├── email_verification_service.dart  # 이메일 인증 코드 처리
 │   ├── password_reset_service.dart
 │   ├── token_service.dart
 │   ├── session_service.dart
 │   └── config/
-│       └── api_config.dart     # API 엔드포인트, 환경 설정
+│       └── api_config.dart          # API 엔드포인트, 환경 설정
 │
 ├── data/
-│   ├── model/                  # 데이터 모델
+│   ├── model/                       # 데이터 모델
 │   │   ├── job.dart
 │   │   ├── inquiry.dart
 │   │   ├── board.dart
 │   │   └── notification_model.dart
-│   └── provider/               # Riverpod 상태 관리
+│   └── provider/                    # Riverpod 상태 관리
 │       ├── auth_provider.dart
 │       ├── job_provider.dart
 │       ├── resume_providers.dart
 │       ├── admin_provider.dart
 │       ├── profile_provider.dart
 │       ├── notification_provider.dart
-│       └── …
+│       ├── notice_provider.dart
+│       ├── inquiry_provider.dart
+│       └── file_upload_provider.dart
 │
 ├── ui/
 │   ├── pages/
-│   │   ├── home/               # 홈 화면
-│   │   ├── login/              # 인증 (로그인, 회원가입, 아이디/비번 찾기)
-│   │   ├── job/                # 채용공고
-│   │   ├── resume/             # 이력서
-│   │   ├── board/              # 게시판
-│   │   ├── notice/             # 공지사항
-│   │   ├── inquiry/            # 1:1 문의
-│   │   ├── mypage/             # 개인 마이페이지 (프로필 수정 포함)
-│   │   ├── company_mypage/     # 기업 마이페이지
-│   │   ├── company/            # 기업 전용 (지원자 관리)
-│   │   ├── search/             # 검색, 인재정보 검색
-│   │   ├── payment/            # 광고 결제 플로우
-│   │   ├── notification/       # 알림
-│   │   ├── resources/          # 자료실, 취업 뉴스
-│   │   ├── tools/              # 글자 수 세기
-│   │   ├── admin/              # 관리자 패널
-│   │   └── error/              # 오류 페이지
-│   └── widgets/                # 공유 위젯
-│       ├── app_bar.dart        # 공통 AppBar + 로고 + 홈 버튼
+│   │   ├── home/                    # 홈 화면
+│   │   ├── login/                   # 인증 (로그인, 회원가입, 아이디/비번 찾기, 이메일 인증)
+│   │   ├── job/                     # 채용공고
+│   │   ├── resume/                  # 이력서
+│   │   ├── board/                   # 게시판
+│   │   ├── notice/                  # 공지사항
+│   │   ├── inquiry/                 # 1:1 문의
+│   │   ├── mypage/                  # 개인 마이페이지 (프로필 수정, 지원 내역, 스크랩)
+│   │   ├── company_mypage/          # 기업 마이페이지
+│   │   ├── company/                 # 기업 전용 (지원자 관리)
+│   │   ├── search/                  # 검색, 인재정보 검색
+│   │   ├── payment/                 # 광고 결제 플로우
+│   │   ├── notification/            # 알림
+│   │   ├── resources/               # 자료실, 취업 뉴스
+│   │   ├── tools/                   # 글자 수 세기
+│   │   ├── user/                    # 사용자 홈 (user_home_page.dart)
+│   │   ├── admin/                   # 관리자 패널
+│   │   │   ├── board/               # 게시판 CRUD (manage/register/edit)
+│   │   │   └── popup/               # 팝업 CRUD (manage/register/edit)
+│   │   └── error/                   # 오류 페이지 (unauthorized)
+│   └── widgets/                     # 공유 위젯
+│       ├── app_bar.dart             # 공통 AppBar + 로고 + 홈 버튼
 │       ├── apply_dialog.dart
 │       ├── job_status_change_button.dart
 │       ├── quill_editor_widget.dart
@@ -487,7 +513,7 @@ lib/
 │   ├── routes/
 │   └── utils/
 │
-└── extension/                  # Dart 확장 메서드
+└── extension/                       # Dart 확장 메서드
 ```
 
 <br>
@@ -580,6 +606,50 @@ hasAppliedToJob(jobNo)              // 특정 공고 지원 여부 확인
 
 ---
 
+### MypageService
+
+마이페이지 전용 API. 백엔드 `MypageController`와 1:1 연동합니다.
+
+```dart
+getMyProfile()                  // 내 프로필 조회
+updateMyProfile(data)           // 프로필 수정
+getMyStats()                    // 지원/스크랩/이력서 통계
+```
+
+JWT 인터셉터를 내장하며 401 응답 시 토큰을 자동으로 삭제합니다.
+
+---
+
+### CacheService
+
+Redis 백엔드와 협력하는 클라이언트 사이드 인메모리 캐시 서비스입니다. 앱 세션 동안 API 응답을 캐싱하여 불필요한 네트워크 요청을 줄입니다.
+
+```dart
+get<T>(key)                         // 캐시 조회 (만료 시 null 반환)
+set(key, value, {duration})         // 캐시 저장 (기본 10분)
+remove(key)                         // 특정 키 삭제
+clear()                             // 전체 캐시 초기화
+```
+
+| 캐시 TTL 상수 | 값 |
+|------|------|
+| `defaultCacheDuration` | 10분 |
+| `shortCacheDuration` | 5분 |
+| `longCacheDuration` | 1시간 |
+
+---
+
+### EmailVerificationService
+
+회원가입 시 이메일 인증 코드 발송 및 검증을 처리합니다.
+
+```dart
+sendVerificationCode(email)     // 인증 코드 발송
+verifyCode(email, code)         // 코드 확인 → bool 반환
+```
+
+---
+
 ### AdminNotifier (Riverpod StateNotifier)
 
 관리자 기능 전체를 하나의 StateNotifier로 통합 관리합니다.
@@ -614,7 +684,9 @@ downloadPaymentsExcel()         // 결제 내역 Excel 다운로드
 | **ScrapService** | 공고 스크랩 추가/삭제/목록 |
 | **FileUploadService** | 이미지·파일 선택, 업로드 (Dio FormData), Excel 다운로드 |
 | **PasswordResetService** | 비밀번호 재설정 이메일 발송 |
-| **EmailService** | 이메일 인증 코드 발송 |
+| **EmailService** | 이메일 발송 (일반 용도) |
+| **TokenService** | JWT 저장·조회·삭제 (SecureStorage 래퍼) |
+| **SessionService** | 로그인 세션 상태 관리 |
 
 <br>
 
@@ -643,6 +715,15 @@ final adminProvider = StateNotifierProvider<AdminNotifier, AdminState>(...);
 
 // 알림
 final notificationProvider = ChangeNotifierProvider<NotificationProvider>(...);
+
+// 공지사항
+final noticeProvider = StateNotifierProvider<NoticeNotifier, NoticeState>(...);
+
+// 문의사항
+final inquiryProvider = StateNotifierProvider<InquiryNotifier, InquiryState>(...);
+
+// 파일 업로드
+final fileUploadProvider = StateNotifierProvider<FileUploadNotifier, FileUploadState>(...);
 
 // 이력서 폼 필드 (세분화된 StateProvider)
 final resumeTitleProvider       = StateProvider<String>((ref) => '');
@@ -707,6 +788,8 @@ Pretendard 폰트 기반 7단계 역할 스케일:
 | Caption | `bodySmall` | 13 | 400 | 보조 설명 |
 | Micro | `labelSmall` | 11 | 600 | 배지, 태그 |
 
+Ownglyph-GeungJeong 폰트는 홈 화면 슬로건 등 감성적 표현이 필요한 곳에 선택적으로 사용합니다.
+
 ### 그림자 시스템
 
 ```dart
@@ -747,6 +830,21 @@ buildCommonAppBar(
 ## API 연동
 
 환경별 API 엔드포인트는 `flutter_dotenv`를 사용해 `.env` 파일로 분리 관리합니다.
+
+### 필수 환경 변수 (.env)
+
+```env
+API_URL=http://localhost:8080
+
+FIREBASE_API_KEY=your-api-key
+FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+FIREBASE_MESSAGING_SENDER_ID=000000000000
+FIREBASE_APP_ID=1:000000000000:web:000000000000
+```
+
+> Android/iOS는 `google-services.json` / `GoogleService-Info.plist`로 Firebase를 초기화합니다. Web은 `.env` 값으로 수동 초기화합니다.
 
 ### API 설정값
 
@@ -812,6 +910,7 @@ test/
 │   └── test_data.json           # 공용 모킹 데이터
 ├── mocks/
 │   └── mocks.mocks.dart         # Mockito 자동 생성 Mock 클래스
+├── golden_files/                # 골든 스냅샷 이미지
 ├── test_setup.dart
 ├── test_config.dart
 └── test_utils.dart
@@ -895,7 +994,16 @@ dart format .
 
 ### CI/CD
 
-GitHub Actions 워크플로우(`.github/workflows/`)로 PR 시 자동 빌드 및 테스트가 실행됩니다.
+GitHub Actions(`.github/workflows/frontend-ci.yml`)로 `main`·`develop` 브랜치 push 및 `main` PR 시 자동 파이프라인이 실행됩니다.
+
+| 단계 | 내용 |
+|------|------|
+| Checkout | 코드 체크아웃 |
+| Flutter 설정 | stable 채널, 캐시 활성화 |
+| .env 생성 | CI용 더미 환경 변수 주입 |
+| 의존성 설치 | `flutter pub get` |
+| 정적 분석 | `flutter analyze --no-fatal-infos` |
+| 테스트 실행 | 위젯 + 서비스 단위 테스트 (auth, board, resume, apply, notice) |
 
 <br>
 
@@ -907,11 +1015,160 @@ GitHub Actions 워크플로우(`.github/workflows/`)로 PR 시 자동 빌드 및
 git clone <repository-url>
 cd peoplejob_frontend
 
-# 의존성 설치
+# 1. 의존성 설치
 flutter pub get
 
-# 실행
+# 2. .env 파일 생성 (필수)
+cp .env.example .env
+# → API_URL, FIREBASE_* 값 입력
+
+# 3. Mock 코드 생성
+dart run build_runner build --delete-conflicting-outputs
+
+# 4. 실행
 flutter run
 ```
 
-> **참고:** Firebase 설정(`google-services.json`)은 저장소에 포함되지 않습니다. 별도 설정이 필요합니다.
+> **참고:** Android/iOS 빌드 시 `google-services.json`(Android) / `GoogleService-Info.plist`(iOS)가 필요합니다. 저장소에는 포함되지 않으므로 Firebase 콘솔에서 별도로 발급받으세요.
+
+<br>
+
+---
+
+## 트러블슈팅
+
+### `.env` 파일을 찾을 수 없음
+
+```
+FileNotFoundException: .env file not found
+```
+
+프로젝트 루트에 `.env` 파일이 없거나 `pubspec.yaml`의 `assets`에 등록되지 않은 경우입니다.
+
+```bash
+# 루트에 .env 파일 생성
+touch .env
+```
+
+`pubspec.yaml`에 다음이 있는지 확인하세요.
+
+```yaml
+flutter:
+  assets:
+    - .env
+```
+
+---
+
+### Firebase 초기화 오류 (중복 초기화)
+
+```
+[core/duplicate-app] A Firebase App named '[DEFAULT]' already exists.
+```
+
+`main.dart`에서 Firebase를 두 번 초기화하고 있을 때 발생합니다. Web은 `FirebaseOptions` 수동 전달, Android/iOS는 `Firebase.initializeApp()` 단독 호출만 허용합니다. 두 경로가 `kIsWeb`으로 분기되어 있는지 확인하세요.
+
+---
+
+### 401 Unauthorized — JWT 토큰 만료
+
+모든 서비스의 Dio 인터셉터는 401 응답 시 `SecureStorage`에서 토큰을 자동 삭제합니다. 로그아웃 후 재로그인하면 해결됩니다. 토큰이 삭제됐는데도 반복 발생하면 백엔드 토큰 유효 기간 설정을 확인하세요.
+
+---
+
+### `flutter pub get` 실패 — 의존성 충돌
+
+```
+Because X depends on Y >=A <B which doesn't match any versions, version solving failed.
+```
+
+Flutter SDK 버전이 `^3.7.2`보다 낮거나, Dart SDK가 `^3.7.2`와 맞지 않을 때 발생합니다.
+
+```bash
+flutter upgrade          # Flutter SDK 최신화
+flutter pub upgrade      # 패키지 버전 업데이트
+```
+
+---
+
+### build_runner — Mock 코드 생성 실패
+
+```
+[SEVERE] Failed to generate code for ...
+```
+
+기존 생성 파일과 충돌이 발생했을 때입니다.
+
+```bash
+dart run build_runner clean
+dart run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+### 웹 빌드 CORS 오류
+
+```
+Access to XMLHttpRequest blocked by CORS policy
+```
+
+Flutter Web에서 백엔드 API를 직접 호출할 때 발생합니다. 백엔드 서버에서 `Access-Control-Allow-Origin` 헤더를 허용하거나, 개발 중에는 `flutter run -d chrome --web-browser-flag "--disable-web-security"` 옵션을 임시로 사용할 수 있습니다. 운영 환경에서는 반드시 서버 측 CORS 설정으로 해결하세요.
+
+---
+
+### 파일 선택/이미지 선택 미동작 (Android)
+
+`file_picker`와 `image_picker`는 Android 13+ 에서 미디어 권한이 필요합니다. `permission_handler`로 런타임 권한을 요청하고, `AndroidManifest.xml`에 `READ_MEDIA_IMAGES` 권한이 선언되어 있는지 확인하세요.
+
+---
+
+### Hive 초기화 오류
+
+```
+HiveError: You need to initialize Hive or pass a path to Hive.init()
+```
+
+앱 진입점(`main.dart`)의 `WidgetsFlutterBinding.ensureInitialized()` 이후에 `Hive.initFlutter()`가 호출되어야 합니다. 현재 코드에서 Hive를 직접 사용하는 서비스가 있다면 초기화 순서를 확인하세요.
+
+---
+
+### 관리자 페이지 접근 불가 — `UnauthorizedPage`로 리다이렉트
+
+`/admin/*` 라우트는 `isAdminProvider`가 `true`일 때만 접근됩니다. 로그인 후 `isAdminProvider`를 `true`로 설정하는 로직(보통 `AuthService.login()` 응답의 `role` 필드 확인)이 실행됐는지 확인하세요.
+
+---
+
+### Dio 타임아웃
+
+```
+DioException [connect timeout]: ...
+```
+
+`ApiConfig`의 기본 타임아웃은 30초입니다. 백엔드 서버가 실행 중인지, `.env`의 `API_URL`이 올바른지 확인하세요. 에뮬레이터에서 로컬 서버에 접근할 때는 `10.0.2.2`(Android 에뮬레이터) 또는 실제 머신 IP를 사용해야 합니다.
+
+```env
+# Android 에뮬레이터에서 로컬 서버 접근 시
+API_URL=http://10.0.2.2:8080
+```
+
+---
+
+### 이미지 로딩 실패 (`cached_network_image`)
+
+서버에서 이미지 URL이 만료됐거나, Firebase Storage 규칙이 비공개로 설정된 경우입니다. Firebase Storage 규칙을 확인하거나, 이미지 URL에 서명된 토큰이 포함되어 있는지 확인하세요.
+
+---
+
+### 골든 테스트 실패
+
+```
+Golden "xxx.png": Pixel test failed, X pixels are not matching.
+```
+
+UI 변경 후 골든 파일이 갱신되지 않았을 때 발생합니다.
+
+```bash
+flutter test --update-goldens
+```
+
+`test/golden_files/` 디렉토리의 `.png` 파일이 갱신됩니다. 의도한 UI 변경이 맞는지 확인 후 커밋하세요.
