@@ -50,7 +50,9 @@ class _JobDetailPageState extends State<JobDetailPage> {
       final jobDetail = await _jobService.getJobDetail(widget.jobId);
       if (mounted) {
         setState(() { _jobDetail = jobDetail; _isLoading = false; });
-        if (_userType == 'user') {
+        // 조회수 증가 (백그라운드, 실패해도 무시)
+        _jobService.increaseViewCount(widget.jobId);
+        if (_isIndividualUser) {
           _checkApplicationStatus();
           _checkScrapStatus();
         }
@@ -73,17 +75,23 @@ class _JobDetailPageState extends State<JobDetailPage> {
         _userType = info['userType'];
         _currentUserNo = int.tryParse(info['userNo'] ?? '');
       });
-      if (_userType == 'user') {
+      if (_isIndividualUser) {
         _checkApplicationStatus();
         _checkScrapStatus();
       }
     }
   }
 
+  // 개인회원 여부 (null = 비로그인, 'individual'/'user' = 개인, 그 외는 기업/관리자)
+  bool get _isIndividualUser =>
+      _userType != null && _userType != 'company' && _userType != 'admin';
+
+  bool get _isNotLoggedIn => _userType == null;
+
   bool get _isJobOwner =>
       _currentUserNo != null &&
       _jobDetail != null &&
-      _jobDetail!['userNo'] == _currentUserNo;
+      int.tryParse(_jobDetail!['userNo'].toString()) == _currentUserNo;
 
   Future<void> _checkApplicationStatus() async {
     try {
@@ -243,7 +251,8 @@ class _JobDetailPageState extends State<JobDetailPage> {
     final daysLeft    = _getDaysRemaining(_jobDetail!['deadline']);
     final companyName = (_jobDetail!['company'] ?? _jobDetail!['title'] ?? '').toString();
     final letter      = companyName.isNotEmpty ? companyName[0].toUpperCase() : 'J';
-    final showApplyBar = _userType == 'user' && !isExpired;
+    // 비로그인 또는 개인회원이고 마감 전이면 지원 바 표시
+    final showApplyBar = (_isIndividualUser || _isNotLoggedIn) && !isExpired;
     final showCompanyBar = (_userType == 'company' || _userType == 'admin') && _isJobOwner;
 
     return Scaffold(
@@ -273,7 +282,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                 _navIconBtn(Icons.edit_outlined, Colors.white, () =>
                     Navigator.pushNamed(context, '/job-edit', arguments: widget.jobId)),
                 _navIconBtn(Icons.delete_outline_rounded, const Color(0xFFFFCDD2), _deleteJob),
-              ] else if (_userType == 'user') ...[
+              ] else if (_isIndividualUser) ...[
                 _navIconBtn(
                   _isScraped ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
                   _isScraped ? _orange : Colors.white,
@@ -408,21 +417,38 @@ class _JobDetailPageState extends State<JobDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 배지 행
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
+          Row(
             children: [
-              if (!isExpired)
-                _badge(
-                  daysLeft <= 0 ? 'D-Day' : 'D-$daysLeft',
-                  daysLeft <= 3 ? _red : _green,
-                )
-              else
-                _badge('모집 마감', _secondary),
-              if (_userType == 'user' && _hasApplied)
-                _badge('지원완료', _orange),
-              if (_userType == 'user' && _isScraped)
-                _badge('스크랩됨', const Color(0xFF5856D6)),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (!isExpired)
+                    _badge(
+                      daysLeft <= 0 ? 'D-Day' : 'D-$daysLeft',
+                      daysLeft <= 3 ? _red : _green,
+                    )
+                  else
+                    _badge('모집 마감', _secondary),
+                  if (_isIndividualUser && _hasApplied)
+                    _badge('지원완료', _orange),
+                  if (_isIndividualUser && _isScraped)
+                    _badge('스크랩됨', const Color(0xFF5856D6)),
+                ],
+              ),
+              const Spacer(),
+              // 조회수
+              if ((_jobDetail!['viewCount'] ?? 0) > 0)
+                Row(
+                  children: [
+                    const Icon(Icons.remove_red_eye_outlined, size: 13, color: _secondary),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${_jobDetail!['viewCount']}',
+                      style: const TextStyle(fontSize: 12, color: _secondary),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -679,30 +705,46 @@ class _JobDetailPageState extends State<JobDetailPage> {
       ),
       child: Row(
         children: [
-          // 스크랩 버튼
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              border: Border.all(color: _isScraped ? _orange : _separator),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: IconButton(
-              onPressed: _toggleScrap,
-              icon: Icon(
-                _isScraped ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                color: _isScraped ? _orange : _secondary,
-                size: 22,
+          // 스크랩 버튼 (비로그인 시 로그인 유도)
+          if (_isIndividualUser)
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                border: Border.all(color: _isScraped ? _orange : _separator),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: IconButton(
+                onPressed: _toggleScrap,
+                icon: Icon(
+                  _isScraped ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                  color: _isScraped ? _orange : _secondary,
+                  size: 22,
+                ),
+              ),
+            )
+          else
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                border: Border.all(color: _separator),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: IconButton(
+                onPressed: () => Navigator.pushNamed(context, '/login'),
+                icon: const Icon(Icons.bookmark_border_rounded, color: _secondary, size: 22),
               ),
             ),
-          ),
           const SizedBox(width: 12),
           // 지원하기 버튼
           Expanded(
             child: SizedBox(
               height: 52,
               child: ElevatedButton(
-                onPressed: _hasApplied ? null : _showApplyDialog,
+                onPressed: _isNotLoggedIn
+                    ? () => Navigator.pushNamed(context, '/login')
+                    : (_hasApplied ? null : _showApplyDialog),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _hasApplied ? _secondary : _blue,
                   disabledBackgroundColor: _secondary.withValues(alpha: 0.5),
@@ -710,7 +752,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
-                  _hasApplied ? '지원완료' : '지원하기',
+                  _hasApplied ? '지원완료' : (_isNotLoggedIn ? '로그인 후 지원하기' : '지원하기'),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
               ),

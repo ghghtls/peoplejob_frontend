@@ -44,19 +44,23 @@ class _ScrapListPageState extends State<ScrapListPage> {
     setState(() => _isLoading = true);
     try {
       final scraps = await _scrapService.getMyScrapList();
+      if (!mounted) return;
       setState(() {
         _scraps = scraps;
-        _filteredScraps = scraps;
         _isLoading = false;
       });
+      _filterScraps();
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: _red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 

@@ -26,13 +26,18 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileProvider);
 
+    // 프로필 미로드 + 에러 상태
+    final hasError = profileState.error != null && profileState.userProfile == null;
+    // 최초 로딩 중 (프로필 없고, 에러 없음)
+    final isInitialLoading = profileState.isLoading && profileState.userProfile == null;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       appBar: buildCommonAppBar(
         title: '프로필 편집',
         actions: [
           TextButton(
-            onPressed: profileState.isLoading ? null : _saveProfile,
+            onPressed: (profileState.isLoading || isInitialLoading) ? null : _saveProfile,
             style: TextButton.styleFrom(
               foregroundColor: _blue, minimumSize: Size.zero,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -47,7 +52,38 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
           ),
         ],
       ),
-      body: Column(
+      body: isInitialLoading
+          ? const Center(child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5))
+          : hasError
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: _red, size: 48),
+                        const SizedBox(height: 16),
+                        const Text('프로필을 불러오지 못했습니다',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _label)),
+                        const SizedBox(height: 8),
+                        Text(profileState.error ?? '',
+                            style: const TextStyle(fontSize: 13, color: _secondary),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.read(profileProvider.notifier).loadProfile(),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('다시 시도'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _blue, elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
         children: [
           Expanded(
               child: RefreshIndicator(
@@ -68,7 +104,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
             ),
           ],
         ),
-      bottomSheet: Container(
+      bottomSheet: (isInitialLoading || hasError) ? null : Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         decoration: BoxDecoration(
           color: Colors.white,

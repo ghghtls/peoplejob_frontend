@@ -28,22 +28,27 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     _checkLoginStatus();
   }
 
   Future<void> _checkLoginStatus() async {
-    final token = await _authService.getToken();
-    final userInfo = await _authService.getUserInfo();
-    setState(() {
-      _isLoggedIn = token != null;
-      _userName = userInfo['name'];
-      _userType = userInfo['userType'];
-    });
+    try {
+      final token = await _authService.getToken();
+      final userInfo = await _authService.getUserInfo();
+      if (!mounted) return;
+      setState(() {
+        _isLoggedIn = token != null;
+        _userName = userInfo['name'];
+        _userType = userInfo['userType'];
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoggedIn = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     return Scaffold(
       backgroundColor: _bg,
       drawer: _buildDrawer(),

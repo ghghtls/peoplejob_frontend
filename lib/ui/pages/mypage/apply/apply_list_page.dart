@@ -33,6 +33,7 @@ class _ApplyListPageState extends State<ApplyListPage> {
 
   Future<void> _loadUserInfo() async {
     final userInfo = await _authService.getUserInfo();
+    if (!mounted) return;
     setState(() => _userType = userInfo['userType']);
     _loadApplications();
   }
@@ -43,21 +44,22 @@ class _ApplyListPageState extends State<ApplyListPage> {
       final apps = _userType == 'company'
           ? await _applyService.getAllApplications()
           : await _applyService.getMyApplications();
+      if (!mounted) return;
       setState(() {
         _applications = apps;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: _red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 

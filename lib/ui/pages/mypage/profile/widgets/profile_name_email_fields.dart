@@ -349,7 +349,8 @@ class ProfileNameEmailFieldsState
   }
 
   void _updateControllers(Map<String, dynamic> profile) {
-    _nameController.text = profile['name'] ?? '';
+    // 백엔드 GET /api/users/profile 응답은 'username' 키 사용
+    _nameController.text = profile['username'] ?? profile['name'] ?? '';
     _emailController.text = profile['email'] ?? '';
     _phoneController.text = profile['phone'] ?? '';
     _addressController.text = profile['address'] ?? '';
@@ -370,7 +371,7 @@ class ProfileNameEmailFieldsState
   }
 
   bool _isCompanyUser(Map<String, dynamic>? profile) {
-    return profile?['userType'] == 'COMPANY';
+    return (profile?['userType'] as String?)?.toLowerCase() == 'company';
   }
 
   void _searchAddress() {

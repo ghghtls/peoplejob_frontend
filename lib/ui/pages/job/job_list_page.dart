@@ -33,6 +33,7 @@ class _JobListPageState extends State<JobListPage> {
   String _searchKeyword = '';
   String _selectedJobType = '전체';
   String _selectedLocation = '전체';
+  String _sortOrder = '최신순'; // 최신순 | 마감임박순 | 급여순
 
   final List<String> _jobTypes = ['전체', '정규직', '계약직', '인턴', '프리랜서', '파트타임'];
   final List<String> _locations = [
@@ -56,36 +57,53 @@ class _JobListPageState extends State<JobListPage> {
     setState(() => _isLoading = true);
     try {
       final jobs = await _jobService.getAllJobs();
+      if (!mounted) return;
       setState(() {
         _jobs = jobs;
-        _filteredJobs = jobs;
         _isLoading = false;
       });
+      _filterJobs();
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
   void _filterJobs() {
-    setState(() {
-      _filteredJobs = _jobs.where((job) {
-        final matchesKeyword = _searchKeyword.isEmpty ||
-            job['title'].toString().toLowerCase().contains(_searchKeyword.toLowerCase()) ||
-            job['content'].toString().toLowerCase().contains(_searchKeyword.toLowerCase());
-        final matchesJobType = _selectedJobType == '전체' || job['jobType'] == _selectedJobType;
-        final matchesLocation = _selectedLocation == '전체' || job['location'] == _selectedLocation;
-        return matchesKeyword && matchesJobType && matchesLocation;
-      }).toList();
+    var result = _jobs.where((job) {
+      final matchesKeyword = _searchKeyword.isEmpty ||
+          (job['title'] ?? '').toString().toLowerCase().contains(_searchKeyword.toLowerCase()) ||
+          (job['content'] ?? '').toString().toLowerCase().contains(_searchKeyword.toLowerCase());
+      final matchesJobType = _selectedJobType == '전체' || job['jobType'] == _selectedJobType;
+      final matchesLocation = _selectedLocation == '전체' || job['location'] == _selectedLocation;
+      return matchesKeyword && matchesJobType && matchesLocation;
+    }).toList();
+
+    result.sort((a, b) {
+      if (_sortOrder == '마감임박순') {
+        final da = DateTime.tryParse(a['deadline'] ?? '') ?? DateTime(9999);
+        final db = DateTime.tryParse(b['deadline'] ?? '') ?? DateTime(9999);
+        return da.compareTo(db);
+      } else if (_sortOrder == '급여순') {
+        final sa = int.tryParse((a['salary'] ?? '0').toString().replaceAll(',', '')) ?? 0;
+        final sb = int.tryParse((b['salary'] ?? '0').toString().replaceAll(',', '')) ?? 0;
+        return sb.compareTo(sa);
+      } else {
+        // 최신순: jobNo 내림차순
+        final na = a['jobNo'] as int? ?? 0;
+        final nb = b['jobNo'] as int? ?? 0;
+        return nb.compareTo(na);
+      }
     });
+
+    setState(() => _filteredJobs = result);
   }
 
   bool _isDeadlinePassed(String? deadlineStr) {
@@ -259,7 +277,7 @@ class _JobListPageState extends State<JobListPage> {
 
   Widget _buildResultCount() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
           Text(
@@ -274,6 +292,26 @@ class _JobListPageState extends State<JobListPage> {
           const Text(
             '의 채용공고',
             style: TextStyle(fontSize: 15, color: _secondary, letterSpacing: -0.3),
+          ),
+          const Spacer(),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _sortOrder,
+              isDense: true,
+              style: const TextStyle(fontSize: 13, color: _label, letterSpacing: -0.2),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _secondary),
+              borderRadius: BorderRadius.circular(12),
+              items: const [
+                DropdownMenuItem(value: '최신순', child: Text('최신순')),
+                DropdownMenuItem(value: '마감임박순', child: Text('마감임박순')),
+                DropdownMenuItem(value: '급여순', child: Text('급여순')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _sortOrder = v);
+                _filterJobs();
+              },
+            ),
           ),
         ],
       ),
