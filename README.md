@@ -1,6 +1,6 @@
-# PeopleJob — 채용 플랫폼 Flutter 앱
+# PeopleJob — 채용 플랫폼 (Flutter + Spring Boot)
 
-> 구직자 · 기업 · 관리자를 위한 통합 채용 서비스 모바일/웹 애플리케이션
+> 구직자 · 기업 · 관리자를 위한 통합 채용 서비스 | Flutter 프론트엔드 × Spring Boot REST API 풀스택 프로젝트
 
 <br>
 
@@ -37,15 +37,16 @@
 
 ## 프로젝트 개요
 
-**PeopleJob**은 구직자, 기업 채용담당자, 플랫폼 관리자 세 가지 역할을 지원하는 Flutter 기반 채용 플랫폼입니다. REST API 백엔드와 연동하며 Android · iOS · Web 멀티플랫폼을 단일 코드베이스로 지원합니다.
+**PeopleJob**은 구직자, 기업 채용담당자, 플랫폼 관리자 세 가지 역할을 지원하는 풀스택 채용 플랫폼입니다.
+**Flutter**로 Android · iOS · Web 멀티플랫폼 UI를 구현하고, **Spring Boot** REST API 서버와 연동하여 채용공고·지원·이력서·결제·알림 등 전 도메인을 설계·개발했습니다.
 
 | 항목 | 내용 |
 |------|------|
-| 플랫폼 | Android / iOS / Web |
-| Flutter SDK | ≥ 3.7.2 |
-| 언어 | Dart |
-| 아키텍처 | 서비스 레이어 + Riverpod 상태 관리 |
-| 인증 방식 | JWT Bearer Token (FlutterSecureStorage) |
+| 프론트엔드 | Flutter 3.7.2+ — Android / iOS / Web 멀티플랫폼 |
+| 백엔드 | Spring Boot 3 · Spring Security · JPA · MySQL |
+| 언어 | Dart (프론트) / Java 17 (백엔드) |
+| 인증 | JWT Bearer Token — 발급(Spring) · 저장(FlutterSecureStorage) |
+| 아키텍처 | 프론트: 서비스 레이어 + Riverpod 상태 관리 / 백엔드: Controller-Service-Repository 레이어드 |
 | 로케일 | 한국어 (ko_KR), 영어 (en_US) |
 
 <br>
