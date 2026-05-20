@@ -1,16 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:peoplejob_frontend/services/resume_service.dart';
-
-/// ---------------------------------------------------------------------------
-/// 로컬 Mock (build_runner 불필요)
-/// ---------------------------------------------------------------------------
-class _MockDio extends Mock implements Dio {}
-
-class _MockStorage extends Mock implements FlutterSecureStorage {}
+import 'test_mocks.mocks.dart';
 
 /// ---------------------------------------------------------------------------
 /// 실사용 Response/DioException 헬퍼
@@ -44,17 +37,15 @@ DioException _dioEx({
 void main() {
   group('ResumeService Tests', () {
     late ResumeService resumeService;
-    late _MockDio mockDio;
-    late _MockStorage mockStorage;
+    late MockDio mockDio;
+    late MockFlutterSecureStorage mockStorage;
 
     setUp(() {
-      mockDio = _MockDio();
-      mockStorage = _MockStorage();
+      mockDio = MockDio();
+      mockStorage = MockFlutterSecureStorage();
+      when(mockDio.interceptors).thenReturn(Interceptors());
 
-      // ✅ 테스트 훅으로 모의 객체 주입
       ResumeService.setTestOverrides(dio: mockDio, storage: mockStorage);
-
-      // 생성자는 요청대로 인자 없이!
       resumeService = ResumeService();
 
       when(
@@ -300,11 +291,11 @@ void main() {
           },
         ];
 
-        when(mockDio.get('/api/resume/search?keyword=$keyword')).thenAnswer(
+        when(mockDio.get('/api/resume/search', queryParameters: anyNamed('queryParameters'))).thenAnswer(
           (_) async => _resp(
             mockSearchResults,
             statusCode: 200,
-            path: '/api/resume/search?keyword=$keyword',
+            path: '/api/resume/search',
           ),
         );
 
@@ -318,7 +309,7 @@ void main() {
           ),
           isTrue,
         );
-        verify(mockDio.get('/api/resume/search?keyword=$keyword')).called(1);
+        verify(mockDio.get('/api/resume/search', queryParameters: anyNamed('queryParameters'))).called(1);
       });
 
       test('빈 키워드로 검색 시 빈 배열 반환 테스트', () async {

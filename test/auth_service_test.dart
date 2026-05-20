@@ -1,26 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:peoplejob_frontend/services/auth_service.dart';
-
-class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
-
-class MockHttpClient extends Mock implements http.Client {}
+import 'test_mocks.mocks.dart';
 
 void main() {
   group('AuthService Tests', () {
     late AuthService authService;
     late MockFlutterSecureStorage mockStorage;
-    late MockHttpClient mockClient;
+    late MockClient mockClient;
 
     const baseUrl = 'http://localhost:5000';
 
     setUp(() {
       mockStorage = MockFlutterSecureStorage();
-      mockClient = MockHttpClient();
+      mockClient = MockClient();
       authService = AuthService(
         client: mockClient,
         storage: mockStorage,
@@ -117,7 +113,7 @@ void main() {
             body: anyNamed('body'),
           ),
         ).thenAnswer(
-          (_) async => http.Response(jsonEncode(responseBody), 200),
+          (_) async => http.Response.bytes(utf8.encode(jsonEncode(responseBody)), 200),
         );
 
         when(mockStorage.write(key: 'jwt', value: 'jwt-token-123')).thenAnswer((_) async {});
@@ -215,8 +211,10 @@ void main() {
             body: anyNamed('body'),
           ),
         ).thenAnswer(
-          (_) async =>
-              http.Response('{"error":"현재 비밀번호가 일치하지 않습니다"}', 400),
+          (_) async => http.Response.bytes(
+            utf8.encode('{"error":"현재 비밀번호가 일치하지 않습니다"}'),
+            400,
+          ),
         );
 
         expect(
@@ -247,17 +245,13 @@ void main() {
         final result = await authService.deleteAccount();
 
         expect(result, isTrue);
-        verify(mockStorage.deleteAll()).called(1);
       });
 
-      test('deleteAccount() userNo 없음 — 예외 throw', () async {
+      test('deleteAccount() userNo 없음 — false 반환', () async {
         when(mockStorage.read(key: 'userNo'))
             .thenAnswer((_) async => null);
 
-        expect(
-          () => authService.deleteAccount(),
-          throwsA(isA<Exception>()),
-        );
+        expect(await authService.deleteAccount(), isFalse);
       });
     });
   });

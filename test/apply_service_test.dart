@@ -1,14 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import 'package:peoplejob_frontend/services/apply_service.dart';
-
-// Mock 클래스 정의
-class MockDio extends Mock implements Dio {}
-
-class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+import 'test_mocks.mocks.dart';
 
 void main() {
   group('ApplyService Tests', () {
@@ -19,12 +13,8 @@ void main() {
     setUp(() {
       mockDio = MockDio();
       mockStorage = MockFlutterSecureStorage();
+      when(mockDio.interceptors).thenReturn(Interceptors());
 
-      // interceptors를 실제 Interceptors 인스턴스로 stub
-      final interceptors = Interceptors();
-      when(mockDio.interceptors).thenReturn(interceptors);
-
-      // 서비스에 Mock 주입
       applyService = ApplyService(
         dio: mockDio,
         storage: mockStorage,
@@ -39,6 +29,8 @@ void main() {
         // 토큰 모킹
         when(mockStorage.read(key: 'jwt'))
             .thenAnswer((_) async => 'mock-token');
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => '1');
 
         // API 호출 모킹
         when(
@@ -81,6 +73,8 @@ void main() {
 
         when(mockStorage.read(key: 'jwt'))
             .thenAnswer((_) async => 'mock-token');
+        when(mockStorage.read(key: 'userNo'))
+            .thenAnswer((_) async => '1');
 
         when(
           mockDio.post('/api/apply', data: anyNamed('data')),
@@ -167,9 +161,9 @@ void main() {
             .thenAnswer((_) async => 'mock-token');
         when(mockStorage.read(key: 'userNo')).thenAnswer((_) async => '1');
 
-        when(mockDio.get('/api/apply/user/1')).thenAnswer(
+        when(mockDio.get('/api/mypage/applies/1')).thenAnswer(
           (_) async => Response(
-            requestOptions: RequestOptions(path: '/api/apply/user/1'),
+            requestOptions: RequestOptions(path: '/api/mypage/applies/1'),
             data: mockApplications,
             statusCode: 200,
           ),
@@ -180,7 +174,7 @@ void main() {
         expect(result, hasLength(2));
         expect(result[0]['status'], 'PENDING');
         expect(result[1]['status'], 'ACCEPTED');
-        verify(mockDio.get('/api/apply/user/1')).called(1);
+        verify(mockDio.get('/api/mypage/applies/1')).called(1);
       });
 
       test('특정 채용공고의 지원자 목록 조회 성공 테스트', () async {
@@ -391,6 +385,7 @@ void main() {
     group('에러 처리 테스트', () {
       test('토큰이 없을 때도 정상 동작 테스트', () async {
         when(mockStorage.read(key: 'jwt')).thenAnswer((_) async => null);
+        when(mockStorage.read(key: 'userNo')).thenAnswer((_) async => '1');
 
         const jobopeningNo = 1;
         const resumeNo = 1;
@@ -488,9 +483,9 @@ void main() {
             'status': 'PENDING',
           },
         ];
-        when(mockDio.get('/api/apply/user/1')).thenAnswer(
+        when(mockDio.get('/api/mypage/applies/1')).thenAnswer(
           (_) async => Response(
-            requestOptions: RequestOptions(path: '/api/apply/user/1'),
+            requestOptions: RequestOptions(path: '/api/mypage/applies/1'),
             data: myList,
             statusCode: 200,
           ),

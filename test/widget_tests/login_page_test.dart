@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart' as m;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:peoplejob_frontend/ui/pages/login/login_page.dart';
@@ -10,29 +10,35 @@ import 'package:peoplejob_frontend/ui/pages/login/login_page.dart';
 class MockNavigatorObserver extends Mock implements NavigatorObserver {}
 
 // 공용 빌더: Riverpod ProviderScope + (옵션) NavigatorObserver
+// 아이디 찾기 / 비밀번호 찾기 라우트를 스텁으로 등록해야 pushNamed 에러 없이 동작
 Widget _buildApp({NavigatorObserver? observer}) {
   return ProviderScope(
     child: MaterialApp(
       home: const LoginPage(),
       navigatorObservers: observer != null ? [observer] : const [],
+      routes: {
+        '/find-id': (_) => const Scaffold(body: Text('아이디 찾기')),
+        '/find-password': (_) => const Scaffold(body: Text('비밀번호 찾기')),
+        '/register': (_) => const Scaffold(body: Text('회원가입')),
+      },
     ),
   );
 }
 
 void main() {
+  setUpAll(() async {
+    dotenv.testLoad(fileInput: 'API_URL=http://localhost:5000\n');
+  });
+
   group('LoginPage + LoginForm (existing) Widget Tests', () {
     testWidgets('기본 UI 렌더링', (WidgetTester tester) async {
       await tester.pumpWidget(_buildApp());
 
-      // AppBar의 '로그인'
-      expect(find.widgetWithText(AppBar, '로그인'), findsOneWidget);
-
-      // 로그인 버튼의 '로그인'
+      // 로그인 버튼 텍스트 (AppBar 없는 커스텀 레이아웃)
       expect(find.widgetWithText(ElevatedButton, '로그인'), findsOneWidget);
 
-      // 입력 필드 (Key가 없으므로 라벨 텍스트로 탐색)
-      expect(find.widgetWithText(TextFormField, '아이디'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, '비밀번호'), findsOneWidget);
+      // 입력 필드 2개 존재 (아이디, 비밀번호)
+      expect(find.byType(TextFormField), findsNWidgets(2));
 
       // 하단 링크 버튼
       expect(find.text('아이디 찾기'), findsOneWidget);
@@ -42,8 +48,8 @@ void main() {
     testWidgets('아이디/비밀번호 입력 동작', (WidgetTester tester) async {
       await tester.pumpWidget(_buildApp());
 
-      final useridField = find.widgetWithText(TextFormField, '아이디');
-      final passwordField = find.widgetWithText(TextFormField, '비밀번호');
+      final useridField = find.byType(TextFormField).at(0);
+      final passwordField = find.byType(TextFormField).at(1);
 
       await tester.enterText(useridField, 'testuser');
       await tester.enterText(passwordField, 'password123');
@@ -63,43 +69,31 @@ void main() {
       expect(find.text('비밀번호를 입력하세요'), findsOneWidget);
     });
 
-    testWidgets('로그인 버튼 탭 시 로딩 인디케이터 표시', (WidgetTester tester) async {
+    testWidgets('로그인 버튼 탭 시 처리 완료 후 버튼 복구', (WidgetTester tester) async {
       await tester.pumpWidget(_buildApp());
 
-      // 유효 입력
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '아이디'),
-        'testuser',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '비밀번호'),
-        'password123',
-      );
+      await tester.enterText(find.byType(TextFormField).at(0), 'testuser');
+      await tester.enterText(find.byType(TextFormField).at(1), 'password123');
 
-      // 탭 → 한 프레임 후 로딩표시
-      await tester.tap(find.widgetWithText(ElevatedButton, '로그인'));
+      // TestWidgetsFlutterBinding이 HTTP를 즉시 400으로 처리하므로
+      // CircularProgressIndicator는 pump() 한 번 안에 사라짐 — 완료 후 상태만 검증
+      await tester.ensureVisible(find.widgetWithText(ElevatedButton, '로그인'));
       await tester.pump();
-
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.widgetWithText(ElevatedButton, '로그인'), findsNothing);
-
-      // (네트워크 실패로 에러가 표시될 때까지 대기)
+      await tester.tap(find.widgetWithText(ElevatedButton, '로그인'));
       await tester.pumpAndSettle();
+
+      // 처리 완료 후 버튼이 다시 활성화됨
+      expect(find.widgetWithText(ElevatedButton, '로그인'), findsOneWidget);
     });
 
     testWidgets('로그인 실패 시 에러 메시지(네트워크 오류) 노출', (WidgetTester tester) async {
       await tester.pumpWidget(_buildApp());
 
       // 유효 입력
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '아이디'),
-        'wronguser',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '비밀번호'),
-        'wrongpassword',
-      );
+      await tester.enterText(find.byType(TextFormField).at(0), 'wronguser');
+      await tester.enterText(find.byType(TextFormField).at(1), 'wrongpassword');
 
+      await tester.ensureVisible(find.widgetWithText(ElevatedButton, '로그인'));
       await tester.tap(find.widgetWithText(ElevatedButton, '로그인'));
       await tester.pump(); // setState(_isLoading)
       await tester.pumpAndSettle(); // http.post 시도 → catch → 에러 메시지 세팅

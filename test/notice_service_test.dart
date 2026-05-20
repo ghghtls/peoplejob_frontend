@@ -1,113 +1,149 @@
-// lib/services/notice_service.dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
 
-class NoticeService {
-  // ------------------------ 테스트 전용 훅 ------------------------
-  static http.Client? _testClient;
-  static String? _testBaseUrl;
+import 'package:peoplejob_frontend/services/notice_service.dart';
+import 'package:peoplejob_frontend/data/model/notice.dart';
+import 'test_mocks.mocks.dart';
 
-  /// 테스트에서 모의 http.Client/베이스 URL 주입
-  /// 예) NoticeService.setTestOverrides(client: mockHttpClient);
-  static void setTestOverrides({http.Client? client, String? baseUrl}) {
-    _testClient = client;
-    _testBaseUrl = baseUrl;
-  }
+Response<dynamic> _resp(dynamic data, {int statusCode = 200, required String path}) {
+  return Response<dynamic>(
+    requestOptions: RequestOptions(path: path),
+    data: data,
+    statusCode: statusCode,
+  );
+}
 
-  /// 테스트 훅 초기화
-  static void clearTestOverrides() {
-    _testClient = null;
-    _testBaseUrl = null;
-  }
-  // -------------------------------------------------------------
+DioException _dioEx({required String path, int? statusCode}) {
+  return DioException(
+    requestOptions: RequestOptions(path: path),
+    response: statusCode == null
+        ? null
+        : Response<dynamic>(
+            requestOptions: RequestOptions(path: path),
+            statusCode: statusCode,
+          ),
+    type: statusCode == null
+        ? DioExceptionType.connectionTimeout
+        : DioExceptionType.badResponse,
+  );
+}
 
-  late final http.Client _client;
-  late final String _baseUrl;
+final _noticeJson = {
+  'noticeNo': 1,
+  'title': '서비스 점검 안내',
+  'content': '서버 점검으로 인한 서비스 일시 중단 안내입니다.',
+  'writer': '관리자',
+  'regdate': '2024-01-01',
+  'viewCount': 150,
+  'isImportant': false,
+  'isActive': true,
+};
 
-  /// 무인자 생성자 유지. (앱에서는 그냥 NoticeService() 사용)
-  /// 테스트에서는 setTestOverrides로 클라이언트를 주입한 뒤 생성하세요.
-  NoticeService({
-    http.Client? client,
-    String baseUrl = 'http://localhost:9000',
-  }) {
-    _client = client ?? _testClient ?? http.Client();
-    _baseUrl = _testBaseUrl ?? baseUrl;
-  }
+void main() {
+  group('NoticeService Tests', () {
+    late NoticeService noticeService;
+    late MockDio mockDio;
 
-  Uri _uri(String path, [Map<String, String>? query]) {
-    final base = Uri.parse('$_baseUrl$path');
-    if (query == null || query.isEmpty) return base;
-    return base.replace(queryParameters: {...base.queryParameters, ...query});
-  }
+    setUp(() {
+      mockDio = MockDio();
+      when(mockDio.interceptors).thenReturn(Interceptors());
+      noticeService = NoticeService(dio: mockDio);
+    });
 
-  List<Map<String, dynamic>> _asListOfMap(String body) {
-    final decoded = jsonDecode(body) as List<dynamic>;
-    return decoded.cast<Map<String, dynamic>>();
-  }
+    group('공지사항 조회 테스트', () {
+      test('전체 공지사항 조회 성공', () async {
+        when(mockDio.get('/api/notice')).thenAnswer(
+          (_) async => _resp([_noticeJson], path: '/api/notice'),
+        );
 
-  Map<String, dynamic> _asMap(String body) {
-    return (jsonDecode(body) as Map).cast<String, dynamic>();
-  }
+        final result = await noticeService.getAllNotices();
 
-  // 모든 공지사항
-  Future<List<Map<String, dynamic>>> getAllNotices() async {
-    final res = await _client.get(_uri('/api/notice'));
-    if (res.statusCode == 200) return _asListOfMap(res.body);
-    throw Exception('공지사항 목록을 불러오는데 실패했습니다: ${res.statusCode}');
-  }
+        expect(result, hasLength(1));
+        expect(result[0], isA<Notice>());
+        expect(result[0].title, '서비스 점검 안내');
+        expect(result[0].writer, '관리자');
+        verify(mockDio.get('/api/notice')).called(1);
+      });
 
-  // 단건 조회 (404면 null)
-  Future<Map<String, dynamic>?> getNoticeById(int noticeId) async {
-    final res = await _client.get(_uri('/api/notice/$noticeId'));
-    if (res.statusCode == 200) return _asMap(res.body);
-    if (res.statusCode == 404) return null;
-    throw Exception('공지사항 상세 조회 실패: ${res.statusCode}');
-  }
+      test('전체 공지사항 조회 실패 시 예외 발생', () async {
+        when(mockDio.get('/api/notice')).thenThrow(
+          _dioEx(path: '/api/notice', statusCode: 500),
+        );
 
-  // 중요 공지
-  Future<List<Map<String, dynamic>>> getImportantNotices() async {
-    final res = await _client.get(_uri('/api/notice/important'));
-    if (res.statusCode == 200) return _asListOfMap(res.body);
-    throw Exception('중요 공지사항 조회 실패: ${res.statusCode}');
-  }
+        expect(
+          () => noticeService.getAllNotices(),
+          throwsA(predicate(
+            (e) => e is Exception && e.toString().contains('공지사항 목록을 불러오는데 실패했습니다'),
+          )),
+        );
+      });
 
-  // 최신 공지 (limit 사용)
-  Future<List<Map<String, dynamic>>> getRecentNotices({int limit = 10}) async {
-    final res = await _client.get(
-      _uri('/api/notice/recent', {'limit': '$limit'}),
-    );
-    if (res.statusCode == 200) return _asListOfMap(res.body);
-    throw Exception('최신 공지사항 조회 실패: ${res.statusCode}');
-  }
+      test('공지사항 상세 조회 성공', () async {
+        const noticeId = 1;
+        when(mockDio.get('/api/notice/$noticeId')).thenAnswer(
+          (_) async => _resp(_noticeJson, path: '/api/notice/$noticeId'),
+        );
 
-  // 검색 (빈 키워드는 네트워크 호출하지 않고 빈 배열 반환)
-  Future<List<Map<String, dynamic>>> searchNotices(String keyword) async {
-    if (keyword.trim().isEmpty) return <Map<String, dynamic>>[];
-    final res = await _client.get(
-      _uri('/api/notice/search', {'keyword': keyword}),
-    );
-    if (res.statusCode == 200) return _asListOfMap(res.body);
-    throw Exception('공지사항 검색 실패: ${res.statusCode}');
-  }
+        final result = await noticeService.getNoticeDetail(noticeId);
 
-  // 조회수 증가 (200이면 true, 그 외 false)
-  Future<bool> incrementViewCount(int noticeId) async {
-    final res = await _client.patch(
-      _uri('/api/notice/$noticeId/view'),
-      headers: {'Content-Type': 'application/json'},
-    );
-    return res.statusCode == 200;
-  }
+        expect(result, isNotNull);
+        expect(result!.noticeNo, 1);
+        expect(result.title, '서비스 점검 안내');
+        verify(mockDio.get('/api/notice/$noticeId')).called(1);
+      });
 
-  // 페이지네이션
-  Future<Map<String, dynamic>?> getNoticesWithPagination({
-    int page = 0,
-    int size = 10,
-  }) async {
-    final res = await _client.get(
-      _uri('/api/notice', {'page': '$page', 'size': '$size'}),
-    );
-    if (res.statusCode == 200) return _asMap(res.body);
-    throw Exception('페이지별 공지사항 조회 실패: ${res.statusCode}');
-  }
+      test('존재하지 않는 공지사항 상세 조회 시 예외 발생', () async {
+        const noticeId = 999;
+        when(mockDio.get('/api/notice/$noticeId')).thenThrow(
+          _dioEx(path: '/api/notice/$noticeId', statusCode: 404),
+        );
+
+        expect(
+          () => noticeService.getNoticeDetail(noticeId),
+          throwsA(predicate(
+            (e) => e is Exception && e.toString().contains('공지사항 상세 정보를 불러오는데 실패했습니다'),
+          )),
+        );
+      });
+
+      test('중요 공지사항 조회 성공', () async {
+        final importantJson = {..._noticeJson, 'isImportant': true};
+        when(mockDio.get('/api/notice/important')).thenAnswer(
+          (_) async => _resp([importantJson], path: '/api/notice/important'),
+        );
+
+        final result = await noticeService.getImportantNotices();
+
+        expect(result, hasLength(1));
+        expect(result[0].isImportantNotice, isTrue);
+        verify(mockDio.get('/api/notice/important')).called(1);
+      });
+
+      test('네트워크 오류 시 예외 발생', () async {
+        when(mockDio.get('/api/notice')).thenThrow(
+          _dioEx(path: '/api/notice'),
+        );
+
+        expect(
+          () => noticeService.getAllNotices(),
+          throwsA(isA<Exception>()),
+        );
+      });
+    });
+
+    group('관리자 기능 테스트', () {
+      test('공지사항 삭제 성공', () async {
+        const noticeId = 1;
+        when(mockDio.delete('/api/notice/$noticeId')).thenAnswer(
+          (_) async => _resp(null, path: '/api/notice/$noticeId'),
+        );
+
+        final result = await noticeService.deleteNotice(noticeId);
+
+        expect(result, isTrue);
+        verify(mockDio.delete('/api/notice/$noticeId')).called(1);
+      });
+    });
+  });
 }

@@ -63,3 +63,6 @@ class PerformanceTest {
     await tester.pumpAndSettle();
   }
 }
+
+// 이 파일은 유틸리티 클래스만 포함합니다. 실제 테스트는 각 기능별 테스트 파일에 있습니다.
+void main() {}

@@ -1,16 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:peoplejob_frontend/services/board_service.dart';
-
-/// ---------------------------------------------------------------------------
-/// 로컬 Mock (build_runner 불필요)
-/// ---------------------------------------------------------------------------
-class _MockDio extends Mock implements Dio {}
-
-class _MockStorage extends Mock implements FlutterSecureStorage {}
+import 'test_mocks.mocks.dart';
 
 /// ---------------------------------------------------------------------------
 /// 실사용 Response/DioException 생성 헬퍼
@@ -44,15 +37,14 @@ DioException _dioEx({
 void main() {
   group('BoardService Tests', () {
     late BoardService boardService;
-    late _MockDio mockDio;
-    late _MockStorage mockStorage;
+    late MockDio mockDio;
+    late MockFlutterSecureStorage mockStorage;
 
     setUp(() {
-      mockDio = _MockDio();
-      mockStorage = _MockStorage();
+      mockDio = MockDio();
+      mockStorage = MockFlutterSecureStorage();
+      when(mockDio.interceptors).thenReturn(Interceptors());
 
-      // 테스트 훅으로 모의 의존성 주입 (무인자 생성자 유지)
-      // BoardService.setTestOverrides는 서비스에 테스트 전용 정적 메서드로 추가되어 있어야 합니다.
       BoardService.setTestOverrides(dio: mockDio, storage: mockStorage);
       boardService = BoardService();
 
@@ -406,11 +398,11 @@ void main() {
           },
         ];
 
-        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+        when(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).thenAnswer(
           (_) async => _resp(
             mockSearchResults,
             statusCode: 200,
-            path: '/api/board/search?keyword=$keyword',
+            path: '/api/board/search',
           ),
         );
 
@@ -419,7 +411,7 @@ void main() {
         expect(result, hasLength(2));
         expect(result[0]['title'], contains('점검'));
         expect(result[1]['title'], contains('점검'));
-        verify(mockDio.get('/api/board/search?keyword=$keyword')).called(1);
+        verify(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).called(1);
       });
 
       test('내용으로 게시글 검색 성공 테스트', () async {
@@ -445,11 +437,11 @@ void main() {
           },
         ];
 
-        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+        when(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).thenAnswer(
           (_) async => _resp(
             mockSearchResults,
             statusCode: 200,
-            path: '/api/board/search?keyword=$keyword',
+            path: '/api/board/search',
           ),
         );
 
@@ -458,24 +450,24 @@ void main() {
         expect(result, hasLength(2));
         expect(result[0]['content'], contains('면접'));
         expect(result[1]['title'], contains('면접'));
-        verify(mockDio.get('/api/board/search?keyword=$keyword')).called(1);
+        verify(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).called(1);
       });
 
       test('검색 결과가 없을 때 빈 배열 반환 테스트', () async {
         const keyword = '존재하지않는키워드';
 
-        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+        when(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).thenAnswer(
           (_) async => _resp(
             [],
             statusCode: 200,
-            path: '/api/board/search?keyword=$keyword',
+            path: '/api/board/search',
           ),
         );
 
         final result = await boardService.searchBoards(keyword);
 
         expect(result, isEmpty);
-        verify(mockDio.get('/api/board/search?keyword=$keyword')).called(1);
+        verify(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).called(1);
       });
 
       test('빈 키워드로 검색 시 모든 게시글 반환 테스트', () async {
@@ -485,11 +477,11 @@ void main() {
           {'boardNo': 2, 'title': '두 번째 게시글', 'category': '자유게시판'},
         ];
 
-        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+        when(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).thenAnswer(
           (_) async => _resp(
             mockAllBoards,
             statusCode: 200,
-            path: '/api/board/search?keyword=$keyword',
+            path: '/api/board/search',
           ),
         );
 
@@ -700,11 +692,11 @@ void main() {
             path: '/api/board/category/$category',
           ),
         );
-        when(mockDio.get('/api/board/search?keyword=$keyword')).thenAnswer(
+        when(mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters'))).thenAnswer(
           (_) async => _resp(
             searchResults,
             statusCode: 200,
-            path: '/api/board/search?keyword=$keyword',
+            path: '/api/board/search',
           ),
         );
 
@@ -725,7 +717,7 @@ void main() {
 
         verifyInOrder([
           mockDio.get('/api/board/category/$category'),
-          mockDio.get('/api/board/search?keyword=$keyword'),
+          mockDio.get('/api/board/search', queryParameters: anyNamed('queryParameters')),
         ]);
       });
     });
