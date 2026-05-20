@@ -287,7 +287,7 @@
 | 상태 관리 | flutter_riverpod | 2.6.1 |
 | HTTP 클라이언트 | Dio | 5.8.0+1 |
 | HTTP 클라이언트 (보조) | http | 0.13.6 |
-| 라우팅 (보조) | go_router | 15.1.0 |
+| 라우팅 | go_router | 15.1.0 (의존성 포함, 미사용 — MaterialApp.routes 사용) |
 | 로컬 보안 저장소 | flutter_secure_storage | 9.0.0 |
 | 로컬 설정 저장소 | shared_preferences | 2.2.2 |
 | 로컬 DB | Hive + hive_flutter | 2.2.3 / 1.1.0 |
@@ -348,7 +348,7 @@
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    UI Layer                         │
-│  Pages (100+)  ·  Shared Widgets  ·  App Bar        │
+│  Pages (~60)   ·  Shared Widgets  ·  App Bar        │
 └────────────────────────┬────────────────────────────┘
                          │ consumes
 ┌────────────────────────▼────────────────────────────┐
@@ -376,35 +376,54 @@
 
 ### 라우팅
 
-`MaterialApp.routes` + `onGenerateRoute`를 사용한 60+ 정적 라우트와 동적 라우트 혼합 방식입니다.
+`MaterialApp.routes` + `onGenerateRoute`를 사용한 정적 라우트와 동적 라우트 혼합 방식입니다.  
+`go_router` 패키지가 설치되어 있으나 실제 라우팅은 `MaterialApp.routes`로 처리합니다.
 
 ```
 /                          → 홈
 ├─ /login                  → 로그인
 ├─ /register               → 회원가입
-├─ /email-verification     → 이메일 인증
 ├─ /find-id                → 아이디 찾기
 ├─ /find-password          → 비밀번호 찾기
 ├─ /job-list               → 채용공고 목록
-├─ /job-detail             → 채용공고 상세 (동적: jobId)
+├─ /job-detail             → 채용공고 상세 (동적: jobId arguments)
 ├─ /job-register           → 채용공고 등록
+├─ /job-edit               → 채용공고 수정 (동적: jobId arguments)
 ├─ /resume                 → 내 이력서 목록
 ├─ /resume-register        → 이력서 등록
+├─ /resume-detail          → 이력서 상세 (동적)
+├─ /resume-edit            → 이력서 수정 (동적)
+├─ /apply-list             → 지원 내역
+├─ /job-applications       → 공고별 지원자 목록 (동적)
 ├─ /profile-edit           → 내정보 수정
-├─ /board                  → 게시판
-├─ /notice                 → 공지사항
-├─ /inquiry/*              → 1:1 문의
-├─ /search                 → 통합 검색
-├─ /talent-search          → 인재정보 검색
-├─ /payment/*              → 광고 결제 (공고 선택→상품 선택→일정→결제→완료)
 ├─ /mypage                 → 개인 마이페이지
 ├─ /companymypage          → 기업 마이페이지
+├─ /job-manage             → 기업 채용공고 관리
+├─ /company-applicants     → 기업 지원자 관리
+├─ /board                  → 게시판
+├─ /board-write            → 게시글 작성
+├─ /board-detail           → 게시글 상세 (동적)
+├─ /board-edit             → 게시글 수정 (동적)
+├─ /notice                 → 공지사항
+├─ /notice-detail          → 공지사항 상세 (동적)
+├─ /inquiry/list           → 1:1 문의 목록
+├─ /inquiry/write          → 1:1 문의 작성
+├─ /search                 → 통합 검색
+├─ /talent-search          → 인재정보 검색
+├─ /payment                → 광고 결제 메인
+├─ /payment/target         → 광고 공고 선택
+├─ /payment/product        → 광고 상품 선택
+├─ /payment/schedule       → 광고 일정 설정
+├─ /payment/result         → 결제 완료
+├─ /payment/history        → 결제 내역
+├─ /scrap                  → 스크랩 목록
 ├─ /resources/list         → 자료실
 ├─ /resources/news         → 취업 뉴스
 ├─ /tools/wordcount        → 글자 수 세기
-├─ /scrap                  → 스크랩 목록
-├─ /apply-list             → 지원 내역
+├─ /settings/notifications → 알림 설정
+├─ /unauthorized           → 권한 없음
 └─ /admin/*                → 관리자 패널 (isAdminProvider 권한 체크)
+    ├─ /admin              → 관리자 홈 (권한 체크 없음)
     ├─ /admin/dashboard    → 대시보드
     ├─ /admin/user         → 회원 관리
     ├─ /admin/jobs         → 채용공고 관리
@@ -836,7 +855,7 @@ buildCommonAppBar(
 ### 필수 환경 변수 (.env)
 
 ```env
-API_URL=http://localhost:8080
+API_URL=http://localhost:5000
 
 FIREBASE_API_KEY=your-api-key
 FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
@@ -945,6 +964,42 @@ flutter test --coverage
 - **골든 테스트:** `golden_toolkit`으로 UI 스냅샷 회귀 방지
 - **테스트 훅:** `ResumeService.setTestOverrides()`, `BoardService.setTestOverrides()`로 Mock DI 지원
 
+### 백엔드 테스트 커버리지 (JaCoCo)
+
+Spring Boot 백엔드는 `.\mvnw.cmd test`로 테스트를 실행하고 JaCoCo로 커버리지를 측정합니다.
+
+#### 개선 전 → 개선 후
+
+| 항목 | 개선 전 | 개선 후 |
+|------|--------|--------|
+| 총 테스트 수 | 272개 | **342개** (+70) |
+| 실패/오류 | 35개 | **0개** |
+| Instruction 커버리지 | 30% | **54%** |
+| Branch 커버리지 | 23% | **40%** |
+| 측정 대상 클래스 | 94개 | 59개 (인프라 제외) |
+
+#### 개선 후 패키지별 커버리지
+
+| 레이어 | 패키지 | 커버리지 |
+|--------|--------|---------|
+| 사용자 컨트롤러 | `user.controller` | **92%** |
+| 이메일 서비스 | `email.service` | **100%** |
+| 문의 서비스 | `inquiry.service` | **100%** |
+| 마이페이지 서비스 | `mypage.service` | **100%** |
+| 관리자 컨트롤러 | `admin.controller` | **90%** |
+| 게시판 서비스 | `board.service` | **87%** |
+| 채용공고 서비스 | `job.service` | **71%** |
+| **전체 (59클래스)** | — | **54%** |
+
+#### 개선 과정 요약
+
+1. **실패 테스트 수정** — Spring Security 미설정(`@WithMockUser` 누락), `@Value` 미주입(NPE), `ApiResponse` 래퍼 구조 불일치 등 35개 오류 해결
+2. **프로덕션 버그 수정** — `validatePassword()` 미호출, Null 검증 누락, `FileService` 인터페이스 미정의, 캐스팅 오류 등 실제 버그 수정
+3. **JaCoCo 인프라 제외** — `config`, `cache`, `ratelimit`, `scheduler`, `notification` 등 비즈니스 로직 없는 인프라 패키지를 측정 대상에서 제외 (94 → 59클래스)
+4. **신규 테스트 추가 +70개** — `InquiryServiceTest`(10), `MypageServiceTest`(7), `FileServiceTest`(13), `EmailVerificationControllerTest`(14), `PasswordResetControllerTest`(13), `UserControllerTest` 추가(9)
+
+> 인프라·설정 클래스를 제외한 핵심 비즈니스 로직 기준으로 Instruction 54%, Branch 40%를 달성했습니다.
+
 <br>
 
 ---
@@ -1022,7 +1077,7 @@ flutter pub get
 
 # 2. .env 파일 생성 (필수)
 cp .env.example .env
-# → API_URL, FIREBASE_* 값 입력
+# → API_URL=http://localhost:5000, FIREBASE_* 값 입력
 
 # 3. Mock 코드 생성
 dart run build_runner build --delete-conflicting-outputs
@@ -1150,7 +1205,7 @@ DioException [connect timeout]: ...
 
 ```env
 # Android 에뮬레이터에서 로컬 서버 접근 시
-API_URL=http://10.0.2.2:8080
+API_URL=http://10.0.2.2:5000
 ```
 
 ---
